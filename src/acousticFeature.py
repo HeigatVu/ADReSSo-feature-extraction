@@ -3,44 +3,289 @@ import statistics
 import numpy as np
 import parselmouth
 from parselmouth.praat import call
+import pandas as pd
 
-# Prosody and Fluency
-def get_intensity_attributes():
+
+# Feature Utils
+## Prosody and Fluency
+def get_intensity_attributes(audio_file:parselmouth.Sound, 
+                                time_step:float=0.0, 
+                                min_time:float=0.0,
+                                max_time:float=0.0,
+                                pitch_floor:float=75.0,
+                                interpolation:str="Parabolic",
+                                return_values:bool=False,
+                                replacement_for_nan:float=0.0,
+                                ):
+    """ 
+    Function to get intensity attributes such as minimum intensity, maximum intensity, mean
+    intensity, and standard deviation of intensity.
+    """
+    actual_start = call(audio_file, "Get start time")
+    actual_end = call(audio_file, "Get end time")
+    duration = actual_end - actual_start
+    
+    intensity = call(audio_file, "To Intensity", pitch_floor, time_step, "yes")
+    attributes = dict()
+    
+    # Passing 0.0, 0.0 tells Praat to use the entire time domain of the object
+    query_start, query_end = 0.0, 0.0 
+    
+    attributes["min_intensity"] = call(intensity, "Get minimum", query_start, query_end, interpolation)
+
+    abs_min_time = call(intensity, 'Get time of minimum', query_start, query_end, interpolation)
+    if duration > 0:
+        # Calculate relative time against the segment's own duration
+        attributes['relative_min_intensity_time'] = (abs_min_time - actual_start) / duration
+    else:
+        attributes['relative_min_intensity_time'] = 0.0
+
+    attributes['mean_intensity'] = call(intensity, 'Get mean', query_start, query_end)
+    attributes['stddev_intensity'] = call(intensity, 'Get standard deviation', query_start, query_end)
+    attributes['q1_intensity'] = call(intensity, 'Get quantile', query_start, query_end, 0.25)
+    attributes['median_intensity'] = call(intensity, 'Get quantile', query_start, query_end, 0.50)
+    attributes['q3_intensity'] = call(intensity, 'Get quantile', query_start, query_end, 0.75)
+    
+    intensity_values = None
+    if return_values:
+        intensity_values = []
+        num_frames = call(intensity, 'Get number of frames')
+        
+        # Praat uses 1-based indexing for frames
+        for frame_no in range(1, num_frames + 1):
+            frame_time = call(intensity, 'Get time from frame number', frame_no)
+            
+            if actual_start <= frame_time <= actual_end:
+                val = call(intensity, 'Get value in frame', frame_no)
+                intensity_values.append(val if not math.isnan(val) else replacement_for_nan)
+    
+    return attributes, intensity_values
+    
+
+
+def get_pitch_attributes(audio_file:parselmouth.Sound,
+                            pitch_type:str="preferred",
+                            time_step:float=0.0,
+                            min_time:float=0.0,
+                            max_time:float=0.0,
+                            pitch_floor:float=0.0,
+                            pitch_ceiling:float=600.0,
+                            unit:str="Hertz",
+                            interpolation:str="Parabolic",
+                            return_values:bool=False,
+                            replacement_for_nan:float=0.0,
+                        ):
+    """
+    Function to get pitch attributes such as minimum pitch, maximum pitch, mean pitch, and
+    standard deviation of pitch.
+    """
     pass
 
-def get_pitch_attributes():
+
+def get_speaking_rate(audio_file:parselmouth.Sound,
+                        transcript:str="",
+                        ):
+    """
+    Function to get speaking rate, approximated as number of words divided by total duration.
+    """
     pass
 
-def get_speaking_rate():
+## Voice Quality and Phonation
+def get_harmonics_to_noise_ratio_attributes(
+                                            audio_file:parselmouth.Sound,
+                                            harmonic_type:str="preferred",
+                                            time_step:float=0.01,
+                                            min_time:float=0.0,
+                                            max_time:float=0.0,
+                                            minimum_pitch:float=0.75,
+                                            silence_threshold:float=0.0,
+                                            num_periods_per_window:float=1.0,
+                                            interpolation:str="Parabolic",
+                                            return_values:bool=False,
+                                            replacement_for_nan:float=0.0,
+                                            ):
+    """
+    Function to get Harmonics-to-Noise Ratio (HNR) attributes such as minimum HNR, maximum HNR,
+    mean HNR, and standard deviation of HNR. HNR is defined as a measure that quantifies the amount
+    of additive noise in a voice signal.
+    """
     pass
 
-# Voice Quality and Phonation
-def get_harmonics_to_noise_ratio_attributes():
+def get_glottal_to_noise_ratio_attributes(audio_file:parselmouth.Sound,
+                                            horizontal_minimum:float=0.0,
+                                            horizontal_maximum:float=0.0,
+                                            vertical_minimum:float=0.0,
+                                            vertical_maximum:float=0.0,
+                                            minimum_frequency:float=500.0,
+                                            maximum_frequency:float=4500.0,
+                                            bandwidth:float=1000.0,
+                                            step:int=50,
+                                            ):
+    """
+    Function to get Glottal-to-Noise Ratio (GNE) attributes such as minimum GNE, maximum GNE,
+    mean GNE, standard deviation of GNE, and sum of GNE. GNE is a measure that indicates whether a
+    given voice signal originates from vibrations of the vocal folds or from turbulent noise
+    generated in the vocal tract and is thus related to (but not a direct measure of) breathiness.
+    """
     pass
 
-def get_glottal_to_noise_ratio_attributes():
+def get_local_jitter(audio_file:parselmouth.Sound,
+                        max_time:float=0.0,
+                        pitch_floor:float=75.0,
+                        pitch_ceiling:float=600.0,
+                        period_floor:float=0.0001,
+                        period_ceiling:float=0.02,
+                        max_period_factor:float=1.3,
+                        ):
+    """    
+    Function to calculate (local) jitter from a periodic PointProcess.
+    """
     pass
 
-def get_local_jitter():
-    pass
-
-def get_local_shimmer():
+def get_local_shimmer(audio_file:parselmouth.Sound,
+                        max_time:float=0.0,
+                        pitch_floor:float=75.0,
+                        pitch_ceiling:float=600.0,
+                        period_floor:float=0.0001,
+                        period_ceiling:float=0.02,
+                        max_period_factor:float=1.3,
+                        max_amplitude_factor:float=1.6,
+                        ):
+    """
+    Function to calculate (local) shimmer from a periodic PointProcess.
+    """
     pass
 
 # Spectral and Articulatory
-def get_spectrum_attributes():
+def get_spectrum_attributes(audio_file:parselmouth.Sound,
+                                band_floor:float=200.0,
+                                band_ceiling:float=1000.0,
+                                low_band_floor:float=0.0,
+                                low_band_ceiling:float=500.0,
+                                high_band_floor:float=500.0,
+                                high_band_ceiling:float=4000.0,
+                                power:float=2.0,
+                                moment:float=3.0,
+                                return_values:bool=False,
+                                replacement_for_nan:float=0.0,
+                            ):
+    """
+    Function to get spectrum-based attributes such as center of gravity, skewness, kurtosis, etc.
+    """
     pass
 
-def get_formant_attributes():
+def get_formant_attributes(audio_file:parselmouth.Sound,
+                            time_step:float=0.0,
+                            pitch_floor:float=75.0,
+                            pitch_ceiling:float=600.0,
+                            max_num_formants:float=5.0,
+                            max_formant:float=5500.0,
+                            window_length:float=0.025,
+                            pre_emphasis_frequency:float=50.0,
+                            unit:str="Hertz",
+                            interpolation:str="Linear",
+                            replacement_for_nan:float=0.0,
+                            ):
+    """
+    Function to get formant-related attributes such as mean and median formants.
+    """
     pass
 
 
-# Cepstral (Timbral)
-def get_mfcc():
+## Cepstral (Timbral)
+def get_mfcc(audio_file:parselmouth.Sound,
+            window_length:float=0.015,
+            tkme_step:float=0.005,
+            first_filter_frequency:float=100.0,
+            distance_between_filters:float=100.0,
+            maximum_frequency:float=0.0,
+            ):
+    """
+    Function to calculate the MFCC (Mel Frequency Cepstral Coefficients).
+    """
     pass
 
-def get_lfcc():
+def get_lfcc(audio_file:parselmouth.Sound,
+                lpc_method:str="autocorrelation",
+                prediction:int=16,
+                window_length:float=0.025,
+                time_step:float=0.005,
+                pre_emphasis_frequency:float=50.0,
+                num_coefficients:int=12,
+            ):
+    """
+    Function calculate LFCC (Linear Frequency Cepstral Coefficients).   
+    """
     pass
 
-def get_delta():
+def get_delta(matrix:np.ndarray,
+                step_size:int=2,
+                ):
+    """
+    Function to get a delta matrix on a given matrix, adapted from:
+    http://practicalcryptography.com/miscellaneous/machine-learning/guide-mel-frequency-cepstral-coefficients-mfccs/
+    If get the delta of a MFCC matrix -> get the velocity of MFCC.
+    If get the delta on this resulting velocity -> get the acceleration of MFCCs.
+    """
     pass
+
+
+
+# Runing on each segment and calculate statistics
+def process_addresso_segment(audio_path:str, csv_segment_path:str) -> tuple:
+    """
+    Extracts and aggregates acoustic features strictly from PAR segments in csv
+    """
+
+    # Load audio file
+    full_sound = parselmouth.Sound(audio_path)
+
+    # Load the diarization csv
+    df_segment = pd.read_csv(csv_segment_path)
+    par_segments = df_segment[df_segment["speaker"] == "PAR"].copy()
+
+    segment_features_list = []
+
+    # Iterate over each PAR segment
+    for index, row in par_segments.iterrows():
+        start_time = row["begin"]/1000.0
+        end_time = row["end"]/1000.0
+
+        if start_time >= end_time:
+            continue
+        
+        try:
+            segment_sound = full_sound.extract_part(start_time, end_time)
+        except Exception as e:
+            print(f"Error extracting segment {index}: {e}")
+            continue
+        
+        # Extract feature for this segment
+        intensity_attrs, _ = get_intensity_attributes(segment_sound, min_time=start_time, max_time=end_time)
+        # pitch_attrs, _ = get_pitch_attributes(segment_sound)
+        # hnr_attrs, _ = get_harmonics_to_noise_ratio_attributes(segment_sound)
+        # formant_attrs, _ = get_formant_attributes(segment_sound)
+
+        # Combine to dict
+        segment_features = {
+            "segment_id": index,
+            "start_time": start_time,
+            "end_time": end_time,
+            **intensity_attrs,
+            # **pitch_attrs,
+            # **hnr_attrs,
+            # **formant_attrs,
+        }
+
+        segment_features_list.append(segment_features)
+
+    # Convert to DataFrame
+    df_segment_features = pd.DataFrame(segment_features_list)
+
+    # Patient statistic
+    patient_profile = df_segment_features.drop(columns=["segment_id", "start_time", "end_time"]).agg(["mean", "std"]).unstack()
+
+    # 
+
+    return df_segment_features, patient_profile
+
