@@ -59,7 +59,7 @@ def get_intensity_attributes(audio_file:parselmouth.Sound,
 def get_pitch_attributes(audio_file:parselmouth.Sound,
                             pitch_type:str="preferred",
                             time_step:float=0.0,
-                            pitch_floor:float=0.0,
+                            pitch_floor:float=75.0,
                             pitch_ceiling:float=600.0,
                             unit:str="Hertz",
                             interpolation:str="Parabolic",
@@ -86,19 +86,54 @@ def get_pitch_attributes(audio_file:parselmouth.Sound,
     query_start, query_end = 0.0, 0.0
     
     attributes["voice_fraction"] = call(pitch, "Count voiced frames") / len(pitch)
-    attributes["min_pitch"] = call(pitch, "Get minimum", query_start, query_end, interpolation)
+    attributes["min_pitch"] = call(pitch, "Get minimum", query_start, query_end, unit, interpolation)
     
-    abs_min_time = call(pitch, "Get time of minimum", query_start, query_end)
+    abs_min_time = call(pitch, "Get time of minimum", query_start, query_end, unit, interpolation)
+    if duration > 0:
+        attributes["relative_min_pitch_time"] = (abs_min_time - actual_start) / duration
+    else:
+        attributes["relative_min_pitch_time"] = 0.0
+
+    attributes["max_pitch"] = call(pitch, "Get maximum", query_start, query_end, unit, interpolation)
+    
+    abs_max_time = call(pitch, "Get time of maximum", query_start, query_end, unit, interpolation)
+    if duration > 0:
+        attributes["relative_max_pitch_time"] = (abs_max_time - actual_start) / duration
+    else:
+        attributes["relative_max_pitch_time"] = 0.0
+
+    attributes["mean_pitch"] = call(pitch, "Get mean", query_start, query_end, unit)
+    attributes["stddev_pitch"] = call(pitch, "Get standard deviation", query_start, query_end, unit)
+    attributes["q1_pitch"] = call(pitch, "Get quantile", query_start, query_end, 0.25, unit)
+    attributes["median_pitch"] = call(pitch, "Get quantile", query_start, query_end, 0.50, unit)
+    attributes["q3_pitch"] = call(pitch, "Get quantile", query_start, query_end, 0.75, unit)
+    attributes['mean_absolute_pitch_slope'] = call(pitch, 'Get mean absolute slope', unit)
+    attributes['pitch_slope_without_octave_jumps'] = call(pitch, 'Get slope without octave jumps')
+
+    pitch_values = None
+    if return_values:
+        pitch_values = []
+        num_frames = call(pitch, "Get number of frames")
+        for frame_no in range(1, num_frames+1):
+            value = call(pitch, "Get value in frame", frame_no, unit)
+            if math.isnan(value):
+                pitch_values.append(replacement_for_nan)
+            else:
+                pitch_values.append(value)
+    
+    return attributes, pitch_values
 
 
-
-def get_speaking_rate(audio_file:parselmouth.Sound,
+def get_speaking_rate(audio_path:str,
                         transcript:str="",
                         ):
     """
     Function to get speaking rate, approximated as number of words divided by total duration.
     """
-    pass
+    audio_file = parselmouth.Sound(audio_path)
+    duration = call(audio_file, 'Get end time')
+    word_count = len(str(transcript).split())
+    return word_count / duration if duration > 0 else 0
 
 ## Voice Quality and Phonation
 def get_harmonics_to_noise_ratio_attributes(
@@ -140,7 +175,6 @@ def get_glottal_to_noise_ratio_attributes(audio_file:parselmouth.Sound,
     pass
 
 def get_local_jitter(audio_file:parselmouth.Sound,
-                        max_time:float=0.0,
                         pitch_floor:float=75.0,
                         pitch_ceiling:float=600.0,
                         period_floor:float=0.0001,
@@ -150,10 +184,15 @@ def get_local_jitter(audio_file:parselmouth.Sound,
     """    
     Function to calculate (local) jitter from a periodic PointProcess.
     """
-    pass
+    
+    query_start = 0.0
+    query_end = 0.0
+    point_process = call(audio_file, "To PointProcess (periodic, cc)", pitch_floor, pitch_ceiling)
+    local_jitter = call(point_process, "Get jitter (local)", query_start, query_end, period_floor, period_ceiling, max_period_factor)
+        
+    return local_jitter
 
 def get_local_shimmer(audio_file:parselmouth.Sound,
-                        max_time:float=0.0,
                         pitch_floor:float=75.0,
                         pitch_ceiling:float=600.0,
                         period_floor:float=0.0001,
@@ -164,7 +203,15 @@ def get_local_shimmer(audio_file:parselmouth.Sound,
     """
     Function to calculate (local) shimmer from a periodic PointProcess.
     """
-    pass
+    
+    query_start = 0.0
+    query_end = 0.0
+    point_process = call(audio_file, 'To PointProcess (periodic, cc)', pitch_floor, pitch_ceiling)
+    local_shimmer = call([audio_file, point_process], 'Get shimmer (local)', 
+                            query_start, query_end, period_floor, period_ceiling, 
+                            max_period_factor, max_amplitude_factor)
+    
+    return local_shimmer
 
 # Spectral and Articulatory
 def get_spectrum_attributes(audio_file:parselmouth.Sound,
@@ -182,6 +229,10 @@ def get_spectrum_attributes(audio_file:parselmouth.Sound,
     """
     Function to get spectrum-based attributes such as center of gravity, skewness, kurtosis, etc.
     """
+    
+    spectrum = call(audio_file, "To Spectrum", "yes")
+    
+    attributes = dict()
     pass
 
 def get_formant_attributes(audio_file:parselmouth.Sound,
@@ -198,6 +249,7 @@ def get_formant_attributes(audio_file:parselmouth.Sound,
                             ):
     """
     Function to get formant-related attributes such as mean and median formants.
+    NOTE: All frequency units are 'Hertz' in this function.
     """
     pass
 
@@ -272,9 +324,11 @@ def process_addresso_segment(audio_path:str, csv_segment_path:str) -> tuple:
         
         # Extract feature for this segment
         intensity_attrs, _ = get_intensity_attributes(segment_sound)
-        # pitch_attrs, _ = get_pitch_attributes(segment_sound)
+        pitch_attrs, _ = get_pitch_attributes(segment_sound)
         # hnr_attrs, _ = get_harmonics_to_noise_ratio_attributes(segment_sound)
         # formant_attrs, _ = get_formant_attributes(segment_sound)
+        jitter_attrs = get_local_jitter(segment_sound)
+        shimmer_attrs = get_local_shimmer(segment_sound)
 
         # Combine to dict
         segment_features = {
@@ -282,7 +336,9 @@ def process_addresso_segment(audio_path:str, csv_segment_path:str) -> tuple:
             "start_time": start_time,
             "end_time": end_time,
             **intensity_attrs,
-            # **pitch_attrs,
+            **pitch_attrs,
+            "jitter_local": jitter_attrs,
+            "shimmer_local": shimmer_attrs,
             # **hnr_attrs,
             # **formant_attrs,
         }
