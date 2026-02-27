@@ -1,5 +1,4 @@
 import math
-import statistics
 import numpy as np
 import parselmouth
 from parselmouth.praat import call
@@ -10,8 +9,6 @@ import pandas as pd
 ## Prosody and Fluency
 def get_intensity_attributes(audio_file:parselmouth.Sound, 
                                 time_step:float=0.0, 
-                                min_time:float=0.0,
-                                max_time:float=0.0,
                                 pitch_floor:float=75.0,
                                 interpolation:str="Parabolic",
                                 return_values:bool=False,
@@ -28,46 +25,40 @@ def get_intensity_attributes(audio_file:parselmouth.Sound,
     intensity = call(audio_file, "To Intensity", pitch_floor, time_step, "yes")
     attributes = dict()
     
-    # Passing 0.0, 0.0 tells Praat to use the entire time domain of the object
-    query_start, query_end = 0.0, 0.0 
+    query_start, query_end = 0.0, 0.0 # Passing 0.0, 0.0 tells Praat to use entire the audio
     
     attributes["min_intensity"] = call(intensity, "Get minimum", query_start, query_end, interpolation)
 
-    abs_min_time = call(intensity, 'Get time of minimum', query_start, query_end, interpolation)
+    abs_min_time = call(intensity, "Get time of minimum", query_start, query_end, interpolation)
     if duration > 0:
-        # Calculate relative time against the segment's own duration
-        attributes['relative_min_intensity_time'] = (abs_min_time - actual_start) / duration
+        attributes["relative_min_intensity_time"] = (abs_min_time - actual_start) / duration
     else:
-        attributes['relative_min_intensity_time'] = 0.0
+        attributes["relative_min_intensity_time"] = 0.0
 
-    attributes['mean_intensity'] = call(intensity, 'Get mean', query_start, query_end)
-    attributes['stddev_intensity'] = call(intensity, 'Get standard deviation', query_start, query_end)
-    attributes['q1_intensity'] = call(intensity, 'Get quantile', query_start, query_end, 0.25)
-    attributes['median_intensity'] = call(intensity, 'Get quantile', query_start, query_end, 0.50)
-    attributes['q3_intensity'] = call(intensity, 'Get quantile', query_start, query_end, 0.75)
+    attributes["mean_intensity"] = call(intensity, "Get mean", query_start, query_end)
+    attributes["stddev_intensity"] = call(intensity, "Get standard deviation", query_start, query_end)
+    attributes["q1_intensity"] = call(intensity, "Get quantile", query_start, query_end, 0.25)
+    attributes["median_intensity"] = call(intensity, "Get quantile", query_start, query_end, 0.50)
+    attributes["q3_intensity"] = call(intensity, "Get quantile", query_start, query_end, 0.75)
     
     intensity_values = None
+
     if return_values:
         intensity_values = []
-        num_frames = call(intensity, 'Get number of frames')
-        
-        # Praat uses 1-based indexing for frames
-        for frame_no in range(1, num_frames + 1):
-            frame_time = call(intensity, 'Get time from frame number', frame_no)
-            
-            if actual_start <= frame_time <= actual_end:
-                val = call(intensity, 'Get value in frame', frame_no)
-                intensity_values.append(val if not math.isnan(val) else replacement_for_nan)
+        num_frames = call(intensity, "Get number of frames")
+        for frame_no in range(1, num_frames+1): 
+            value = call(intensity, "Get value in frame", frame_no)
+            if math.isnan(value):
+                intensity_values.append(replacement_for_nan)
+            else:
+                intensity_values.append(value)
     
     return attributes, intensity_values
-    
 
 
 def get_pitch_attributes(audio_file:parselmouth.Sound,
                             pitch_type:str="preferred",
                             time_step:float=0.0,
-                            min_time:float=0.0,
-                            max_time:float=0.0,
                             pitch_floor:float=0.0,
                             pitch_ceiling:float=600.0,
                             unit:str="Hertz",
@@ -79,7 +70,26 @@ def get_pitch_attributes(audio_file:parselmouth.Sound,
     Function to get pitch attributes such as minimum pitch, maximum pitch, mean pitch, and
     standard deviation of pitch.
     """
-    pass
+    actual_start = call(audio_file, "Get start time")
+    actual_end = call(audio_file, "Get end time")
+    duration = actual_end - actual_start
+
+    # Create pitch object
+    if pitch_type == 'preferred':
+        pitch = call(audio_file, 'To Pitch', time_step, pitch_floor, pitch_ceiling)
+    elif pitch_type == 'cc':
+        pitch = call(audio_file, 'To Pitch (cc)', time_step, pitch_floor, pitch_ceiling)
+    else:
+        raise ValueError('Argument for @pitch_type not recognized!')
+
+    attributes = dict()
+    query_start, query_end = 0.0, 0.0
+    
+    attributes["voice_fraction"] = call(pitch, "Count voiced frames") / len(pitch)
+    attributes["min_pitch"] = call(pitch, "Get minimum", query_start, query_end, interpolation)
+    
+    abs_min_time = call(pitch, "Get time of minimum", query_start, query_end)
+
 
 
 def get_speaking_rate(audio_file:parselmouth.Sound,
@@ -261,7 +271,7 @@ def process_addresso_segment(audio_path:str, csv_segment_path:str) -> tuple:
             continue
         
         # Extract feature for this segment
-        intensity_attrs, _ = get_intensity_attributes(segment_sound, min_time=start_time, max_time=end_time)
+        intensity_attrs, _ = get_intensity_attributes(segment_sound)
         # pitch_attrs, _ = get_pitch_attributes(segment_sound)
         # hnr_attrs, _ = get_harmonics_to_noise_ratio_attributes(segment_sound)
         # formant_attrs, _ = get_formant_attributes(segment_sound)
