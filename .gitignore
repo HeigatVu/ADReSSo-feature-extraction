@@ -4,3 +4,6 @@
 # Build output
 data/
 output/
+
+# Other
+__pycache__
