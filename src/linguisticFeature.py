@@ -7,6 +7,7 @@ from textblob import TextBlob
 from spacy.tokens import Doc
 import pandas as pd
 import re
+import textstat
 
 # Traditional Linguistic features
 @lru_cache
@@ -29,7 +30,7 @@ def clean_and_tokenize_spacy(transcript:str, lang:str="en") -> tuple[list, str]:
     return words, doc
 
 
-def lexical_richness(transcript:str, lang:str="en") -> tuple[float, float, float, float]:
+def lexical_richness(transcript:str, lang:str="en") -> tuple[float]:
     """ Meansure lexical richness
     """
     
@@ -51,7 +52,7 @@ def lexical_richness(transcript:str, lang:str="en") -> tuple[float, float, float
     else:
         brunet = 0
 
-    # Honore statistic // https://arxiv.org/pdf/2109.11010 -> performance always None
+    # Honore statistic // https://arxiv.org/pdf/2109.11010 -> performance None when testing -> skip
     # v1 = 0
     # for c in freqs.values():
     #     if c == 1:
@@ -83,7 +84,7 @@ def lexical_richness(transcript:str, lang:str="en") -> tuple[float, float, float
             )
 
 
-## Extract pos_tagged, polarity, subjectivity, lexical diversity
+## Extract pos_tagged, polarity, subjectivity, pos rate
 def polarity(transcript:str) -> float:
     """ Extract polarity in transcript
     """
@@ -156,7 +157,7 @@ def tag_count(pos_tags:list[tuple]) -> dict:
 
     return counts
 
-
+## Evaluate disfluency
 def count_disfluency(transcript:str, lang="en") -> int:
     """ Evaluate fuency
     """
@@ -183,15 +184,51 @@ def count_disfluency(transcript:str, lang="en") -> int:
     
     return disfluency_count
 
+# Readability
+def evaluate_readability(transcript:str) -> tuple[float, float, float, float, int]:
+    """ Evaluate readability of transcript leverge scores: dale chall, flesch, coleman liau index, automated readability index, r-time and syllables
+    """
 
+    dale_chall = textstat.dale_chall_readability_score(transcript)
+    flesch = textstat.flesch_reading_ease(transcript)
+    coleman_liau_index = textstat.coleman_liau_index(transcript)
+    r_time = textstat.reading_time(transcript, ms_per_char=52) # assume that normal WPM=260 and average word has 5 -> ms_per_char=52
+    syllables = textstat.syllable_count(transcript)
 
+    return dale_chall, flesch, coleman_liau_index, r_time, syllables
 
-# Sparse text repsentation
+def evaluate_deixis(transcripti:str, lang:str="en") -> tuple[float]:
+    """ Evaluate defiction by person, spatial deixis rate in the transcript
+    """
 
+    nlp = __load_spacy(lang)
+    doc = nlp(transcripti or "")
 
+    person_deixis_tags = {"PRP", "PRP$", "WP", "WP$"}
+    # Spatial and Temporal deixis are strictly defined by context-dependent words
+    spatial_words = {"here", "there", "this", "that", "these", "those"}
+    temporal_words = {"now", "then", "today", "tomorrow", "yesterday", "ago", "soon", "later"}
 
-# Static dense text presentation
+    valid_tokens = []
+    for token in doc:
+        if not token.is_punct and not token.is_space:
+            valid_tokens.append(token)
 
+    total_words = len(valid_tokens)
 
+    if total_words == 0:
+        return 0.0, 0.0, 0.0
 
-# Contextualized dense text representation
+    person_count, spatial_count, temporal_count = 0, 0, 0
+
+    for token in valid_tokens:
+        word_lower = token.text.lower()
+
+        if token.tag_ in person_deixis_tags:
+            person_count += 1
+        if word_lower in spatial_words:
+            spatial_count += 1
+        if word_lower in temporal_words:
+            temporal_count += 1
+
+    return round((person_count/total_words), 5), round((spatial_count/total_words), 5), round((temporal_count/total_words), 5)
