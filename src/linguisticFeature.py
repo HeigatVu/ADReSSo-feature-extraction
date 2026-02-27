@@ -115,7 +115,7 @@ def pos_polarity_subjectivity(transcript:str, lang:str="en") -> tuple[list[tuple
     return pos_tagged_data, polarity, subjectivity
 
 
-def tag_count(pos_tags:list[tuple]) -> dict:
+def tag_count(pos_tags:list[tuple]) -> dict[str:int,float]:
     """ Counting all word categories on POS tag
     """
 
@@ -136,8 +136,8 @@ def tag_count(pos_tags:list[tuple]) -> dict:
         "determiners": pos_counts.get("DET", 0),
         "conjunctions": pos_counts.get("CCONJ", 0),
         "prepositions": pos_counts.get("ADP", 0),
-        "auxilitary_verbs": pos_counts.get("AUX", 0),
-        "particles": pos_counts.get("AUX", 0),
+        "auxiliary_verbs": pos_counts.get("AUX", 0),
+        "particles": pos_counts.get("PART", 0),
         "numbers": pos_counts.get("NUM", 0),  
     }
 
@@ -156,6 +156,22 @@ def tag_count(pos_tags:list[tuple]) -> dict:
     counts["content_density"] = content_density
 
     return counts
+
+def evaluate_pos_rate(pos_tags:dict[str:int,float]) -> dict[str:float]:
+    """ Evaluate each type of word rate
+    """
+
+    rates = dict()
+    total_counts = pos_tags.get("total_counts", 0)
+
+    for pos_category, count in pos_tags.items():
+        if pos_category not in ["total_counts", "open_class_words", "closed_class_words", "content_density"]:
+            if total_counts > 0:
+                rates[f"{pos_category}_rate"] = round((count/total_counts), 5)
+            else:
+                rates[f"{pos_category}_rate"] = 0.0
+
+    return rates
 
 ## Evaluate disfluency
 def count_disfluency(transcript:str, lang="en") -> int:
@@ -197,6 +213,7 @@ def evaluate_readability(transcript:str) -> tuple[float, float, float, float, in
 
     return dale_chall, flesch, coleman_liau_index, r_time, syllables
 
+# Evaluate each rate
 def evaluate_deixis(transcripti:str, lang:str="en") -> tuple[float]:
     """ Evaluate defiction by person, spatial deixis rate in the transcript
     """
@@ -232,5 +249,3 @@ def evaluate_deixis(transcripti:str, lang:str="en") -> tuple[float]:
             temporal_count += 1
 
     return round((person_count/total_words), 5), round((spatial_count/total_words), 5), round((temporal_count/total_words), 5)
-
-
