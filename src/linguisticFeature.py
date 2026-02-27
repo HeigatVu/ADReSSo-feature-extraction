@@ -3,10 +3,14 @@ from typing import Counter
 import spacy
 import math
 from ideadensity import depid
+from textblob import TextBlob
+from spacy.tokens import Doc
+import pandas as pd
+import re
 
 # Traditional Linguistic features
 @lru_cache
-def __load_spacy(lang:str="en"):
+def __load_spacy(lang:str="en") -> None:
     """Support calling one time spacy model -> faster speed
     """
     if lang == "en":
@@ -14,7 +18,7 @@ def __load_spacy(lang:str="en"):
     else:
         print("Current does not support")
 
-def clean_and_tokenize_spacy(transcript:str, lang:str="en"):
+def clean_and_tokenize_spacy(transcript:str, lang:str="en") -> tuple[list, str]:
     nlp = __load_spacy(lang)
     doc = nlp(transcript or "")
     words = []
@@ -25,7 +29,7 @@ def clean_and_tokenize_spacy(transcript:str, lang:str="en"):
     return words, doc
 
 
-def lexical_richness(transcript:str, lang:str="en"):
+def lexical_richness(transcript:str, lang:str="en") -> tuple[float, float, float, float]:
     """ Meansure lexical richness
     """
     
@@ -55,9 +59,7 @@ def lexical_richness(transcript:str, lang:str="en"):
     # if V > v1 and N>0 and V>0:
     #     honore = round((100*math.log(N))/(1 - (v1/V)), 2)
     # else:
-    #     honore = None
-
-
+    #     honore = float("nan")
 
     # Standardised Entropy in linguistic /‌/ https://arxiv.org/pdf/2109.11010
     entropy = 0.0
@@ -65,7 +67,7 @@ def lexical_richness(transcript:str, lang:str="en"):
         for count in freqs.values():
             p_xi = count / N
             entropy -= p_xi * math.log2(p_xi)
-        std_entropy = round(entropy / math.log(N) + 1e-5, 5)
+        std_entropy = round((entropy / math.log(N) + 1e-5), 5)
     else:
         std_entropy = 0.0
 
@@ -80,16 +82,112 @@ def lexical_richness(transcript:str, lang:str="en"):
             pidensity
             )
 
-## Part-of-speech (POS) tag
+
+## Extract pos_tagged, polarity, subjectivity, lexical diversity
+def polarity(transcript:str) -> float:
+    """ Extract polarity in transcript
+    """
+    return TextBlob(transcript.text).sentiment.polarity
+
+def subjectivity(transcript:str) -> float:
+    """ Extract subjectivity in transcript
+    """
+    return TextBlob(transcript.text).sentiment.subjectivity
+
+Doc.set_extension("polarity", getter=polarity)
+Doc.set_extension("subjectivity", getter=subjectivity)
+
+def pos_polarity_subjectivity(transcript:str, lang:str="en") -> tuple[list[tuple], float, float]:
+    """ Including for POS tag, polarity and subjectivity
+    """
+
+    nlp = __load_spacy(lang)
+    doc = nlp(transcript or "")
+
+    polarity = doc._.polarity
+    subjectivity = doc._.subjectivity
+
+    pos_tagged_data = []
+    for token in doc:
+        pos_tagged_data.append((token.text, token.pos_))
+
+    return pos_tagged_data, polarity, subjectivity
 
 
+def tag_count(pos_tags:list[tuple]) -> dict:
+    """ Counting all word categories on POS tag
+    """
+
+    tags = []
+    for tag in pos_tags:
+        if (len(tag) == 2):
+            tags.append(tag[1])
+
+    pos_counts = Counter(tags)
+
+    counts = {
+        "verbs": pos_counts.get("VERB", 0),
+        "nouns": pos_counts.get("NOUN", 0),
+        "pronouns": pos_counts.get("PRON", 0),
+        "adjectives": pos_counts.get("ADJ", 0),
+        "adverbs": pos_counts.get("ADV", 0),
+        "interjections": pos_counts.get("INTJ", 0),
+        "determiners": pos_counts.get("DET", 0),
+        "conjunctions": pos_counts.get("CCONJ", 0),
+        "prepositions": pos_counts.get("ADP", 0),
+        "auxilitary_verbs": pos_counts.get("AUX", 0),
+        "particles": pos_counts.get("AUX", 0),
+        "numbers": pos_counts.get("NUM", 0),  
+    }
+
+    total_counts = sum(counts.values())
+    open_class_words = counts["verbs"] + counts["nouns"] + counts["adjectives"] + counts["adverbs"]
+    closed_class_words = total_counts - open_class_words
+
+    if closed_class_words != 0:
+        content_density = open_class_words/closed_class_words
+    else:
+        content_density = float("nan")
+
+    counts["total_counts"] = total_counts
+    counts["open_class_words"] = open_class_words
+    counts["closed_class_words"] = closed_class_words
+    counts["content_density"] = content_density
+
+    return counts
+
+
+def count_disfluency(transcript:str, lang="en") -> int:
+    """ Evaluate fuency
+    """
+
+    nlp = __load_spacy(lang)
+    doc = nlp(transcript or "")
+
+    # Words that are almost universally used as fillers/hesitations
+    pure_fillers = {'uh', 'uhh', 'um', 'umm', 'oh', 'ohh', 'hm', 'hmm', 'er', 'erm'}
+    
+    # Words that have valid grammatical roles, but become disfluencies when used as interjections
+    ambiguous_fillers = {'like', 'so', 'well', 'right', 'okay', 'alright', 'actually', 'basically'}
+
+    disfluency_count = 0
+    for token in doc:
+        word = token.text.lower()
+        
+        if word in pure_fillers:
+            disfluency_count += 1
+        elif word in ambiguous_fillers and token.pos_ == "INTJ":
+            disfluency_count += 1
+        
+
+    
+    return disfluency_count
 
 # Sparse text repsentation
 
 
 
 # Static dense text presentation
-
 
 
 
