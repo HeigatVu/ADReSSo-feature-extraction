@@ -232,3 +232,5 @@ def evaluate_deixis(transcripti:str, lang:str="en") -> tuple[float]:
             temporal_count += 1
 
     return round((person_count/total_words), 5), round((spatial_count/total_words), 5), round((temporal_count/total_words), 5)
+
+
