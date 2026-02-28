@@ -13,7 +13,7 @@ def get_intensity_attributes(audio_file:parselmouth.Sound,
                                 interpolation:str="Parabolic",
                                 return_values:bool=False,
                                 replacement_for_nan:float=0.0,
-                                ):
+                                ) -> tuple[dict, list]:
     """ 
     Function to get intensity attributes such as minimum intensity, maximum intensity, mean
     intensity, and standard deviation of intensity.
@@ -65,7 +65,7 @@ def get_pitch_attributes(audio_file:parselmouth.Sound,
                             interpolation:str="Parabolic",
                             return_values:bool=False,
                             replacement_for_nan:float=0.0,
-                        ):
+                        ) -> tuple[dict, list]:
     """
     Function to get pitch attributes such as minimum pitch, maximum pitch, mean pitch, and
     standard deviation of pitch.
@@ -126,7 +126,7 @@ def get_pitch_attributes(audio_file:parselmouth.Sound,
 
 def get_speaking_rate(audio_path:str,
                         transcript:str="",
-                        ):
+                        ) -> float:
     """
     Function to get speaking rate, approximated as number of words divided by total duration.
     """
@@ -180,7 +180,7 @@ def get_local_jitter(audio_file:parselmouth.Sound,
                         period_floor:float=0.0001,
                         period_ceiling:float=0.02,
                         max_period_factor:float=1.3,
-                        ):
+                        ) -> float:
     """    
     Function to calculate (local) jitter from a periodic PointProcess.
     """
@@ -199,7 +199,7 @@ def get_local_shimmer(audio_file:parselmouth.Sound,
                         period_ceiling:float=0.02,
                         max_period_factor:float=1.3,
                         max_amplitude_factor:float=1.6,
-                        ):
+                        ) -> float:
     """
     Function to calculate (local) shimmer from a periodic PointProcess.
     """
@@ -229,10 +229,6 @@ def get_spectrum_attributes(audio_file:parselmouth.Sound,
     """
     Function to get spectrum-based attributes such as center of gravity, skewness, kurtosis, etc.
     """
-    
-    spectrum = call(audio_file, "To Spectrum", "yes")
-    
-    attributes = dict()
     pass
 
 def get_formant_attributes(audio_file:parselmouth.Sound,
@@ -294,7 +290,7 @@ def get_delta(matrix:np.ndarray,
 
 
 # Runing on each segment and calculate statistics
-def process_addresso_segment(audio_path:str, csv_segment_path:str) -> tuple:
+def process_addresso_segment(audio_path:str, csv_segment_path:str) -> tuple[dict, dict]:
     """
     Extracts and aggregates acoustic features strictly from PAR segments in csv
     """
@@ -354,4 +350,3 @@ def process_addresso_segment(audio_path:str, csv_segment_path:str) -> tuple:
     # 
 
     return df_segment_features, patient_profile
-
