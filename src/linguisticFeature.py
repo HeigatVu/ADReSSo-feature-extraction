@@ -76,12 +76,7 @@ def lexical_richness(transcript:str, lang:str="en") -> tuple[float]:
     density,_,_ = depid(transcript or "", is_depid_r=True)
     pidensity = round(float(density), 5)
 
-    return (cttr, 
-            brunet, 
-            # honore, 
-            std_entropy, 
-            pidensity
-            )
+    return cttr, brunet, std_entropy, pidensity
 
 
 ## Extract pos_tagged, polarity, subjectivity, pos rate
@@ -157,14 +152,14 @@ def tag_count(pos_tags:list[tuple]) -> dict[str:int,float]:
 
     return counts
 
-def evaluate_pos_rate(pos_tags:dict[str:int,float]) -> dict[str:float]:
+def evaluate_pos_rate(tag_counts:dict[str:int,float]) -> dict[str:float]:
     """ Evaluate each type of word rate
     """
 
     rates = dict()
-    total_counts = pos_tags.get("total_counts", 0)
+    total_counts = tag_counts.get("total_counts", 0)
 
-    for pos_category, count in pos_tags.items():
+    for pos_category, count in tag_counts.items():
         if pos_category not in ["total_counts", "open_class_words", "closed_class_words", "content_density"]:
             if total_counts > 0:
                 rates[f"{pos_category}_rate"] = round((count/total_counts), 5)
@@ -249,3 +244,24 @@ def evaluate_deixis(transcripti:str, lang:str="en") -> tuple[float]:
             temporal_count += 1
 
     return round((person_count/total_words), 5), round((spatial_count/total_words), 5), round((temporal_count/total_words), 5)
+
+def pause_count():
+    pass
+
+def speech_rate():
+    pass
+
+def articulation_rate():
+    pass
+
+def pause_rate():
+    pass
+
+def syllable_per_word():
+    pass
+
+def pause_per_word():
+    pass
+
+def pause_per_syllable():
+    pass
