@@ -248,9 +248,6 @@ def evaluate_deixis(transcripti:str, lang:str="en") -> tuple[float]:
 def pause_count():
     pass
 
-def speech_rate():
-    pass
-
 def articulation_rate():
     pass
 

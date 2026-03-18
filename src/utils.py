@@ -28,7 +28,7 @@ def get_audio_files(audio_path:str) -> dict[str, List[str]]:
 
 
 # Runing on each segment and calculate statistics
-def process_acoustic_features(audio_path:str, csv_segment_path:str) -> tuple[dict, dict]:
+def process_acoustic_features(audio_path:str, diarization_segment_path:str, transcript_segment_path:str) -> tuple[dict, dict]:
     """
     Extracts and aggregates acoustic features strictly from PAR segments in csv
     """
@@ -36,8 +36,12 @@ def process_acoustic_features(audio_path:str, csv_segment_path:str) -> tuple[dic
     # Load audio file
     full_sound = parselmouth.Sound(audio_path)
 
+    # Transcript
+    df_transcript = pd.read_csv(transcript_segment_path)
+    transcript = " ".join(df_transcript["transcript"].dropna().astype(str))
+
     # Load the diarization csv
-    df_segment = pd.read_csv(csv_segment_path)
+    df_segment = pd.read_csv(diarization_segment_path)
     par_segments = df_segment[df_segment["speaker"] == "PAR"].copy()
 
     segment_features_list = []
@@ -61,6 +65,10 @@ def process_acoustic_features(audio_path:str, csv_segment_path:str) -> tuple[dic
         pitch_attrs, _ = acousticFeature.get_pitch_attributes(segment_sound)
         jitter_attrs = acousticFeature.get_local_jitter(segment_sound)
         shimmer_attrs = acousticFeature.get_local_shimmer(segment_sound)
+        spectrum_attrs, _ = acousticFeature.get_spectrum_attributes(segment_sound)
+        formant_attrs, _ = acousticFeature.get_formant_attributes(segment_sound)
+        speaking_rate = acousticFeature.get_speaking_rate(audio_path, transcript)
+
 
         # Combine to dict
         segment_features = {
@@ -71,6 +79,9 @@ def process_acoustic_features(audio_path:str, csv_segment_path:str) -> tuple[dic
             **pitch_attrs,
             "jitter_local": jitter_attrs,
             "shimmer_local": shimmer_attrs,
+            "speaking_rate": speaking_rate,
+            **spectrum_attrs,
+            **formant_attrs,
         }
 
         segment_features_list.append(segment_features)
@@ -84,10 +95,15 @@ def process_acoustic_features(audio_path:str, csv_segment_path:str) -> tuple[dic
     return df_segment_features, patient_profile
 
 
-def process_linguistic_features(transcript:str, patient_id:str, lang:str="en") -> dict:
+def process_linguistic_features(transcript_path:str, patient_id:str, lang:str="en") -> dict:
     """
     Extract linguistic features from transcript csv
     """
+    df_transcript = pd.read_csv(transcript_path)
+    # Extract the string from the first row, or join them if there are multiple
+    transcript = " ".join(df_transcript["transcript"].dropna().astype(str))
+
+    # Feature
     cttr, brunet, std_entropy, pidensity = linguisticFeature.lexical_richness(transcript, lang=lang)
     pos_tagged_data, polarity, subjectivity = linguisticFeature.pos_polarity_subjectivity(transcript, lang=lang)
     tag_count = linguisticFeature.tag_count(pos_tagged_data)

@@ -22,11 +22,13 @@ def get_intensity_attributes(audio_file:parselmouth.Sound,
     actual_end = call(audio_file, "Get end time")
     duration = actual_end - actual_start
     
+    # Converting audio to intensity
     intensity = call(audio_file, "To Intensity", pitch_floor, time_step, "yes")
     attributes = dict()
     
     query_start, query_end = 0.0, 0.0 # Passing 0.0, 0.0 tells Praat to use entire the audio
     
+    # Adding attribute to dictionary
     attributes["min_intensity"] = call(intensity, "Get minimum", query_start, query_end, interpolation)
 
     abs_min_time = call(intensity, "Get time of minimum", query_start, query_end, interpolation)
@@ -85,6 +87,7 @@ def get_pitch_attributes(audio_file:parselmouth.Sound,
     attributes = dict()
     query_start, query_end = 0.0, 0.0
     
+    # Adding attribute to dictionary
     attributes["voice_fraction"] = call(pitch, "Count voiced frames") / len(pitch)
     attributes["min_pitch"] = call(pitch, "Get minimum", query_start, query_end, unit, interpolation)
     
@@ -225,19 +228,40 @@ def get_spectrum_attributes(audio_file:parselmouth.Sound,
                                 moment:float=3.0,
                                 return_values:bool=False,
                                 replacement_for_nan:float=0.0,
-                            ):
+                            ) -> tuple[dict, list]:
     """
     Function to get spectrum-based attributes such as center of gravity, skewness, kurtosis, etc.
     """
+    # Converting audio to spectrum
     spectrum = call(audio_file, "To Spectrum", "yes")
     attributes = dict()
-
+    # Adding attribute to dictionary
     attributes["band_energy"] = call(spectrum, "Get band energy", band_floor, band_ceiling)
     attributes["band_density"] = call(spectrum, "Get band density", band_floor, band_ceiling)
     attributes["band_energy_difference"] = call(spectrum, "Get band energy difference", 
                                                 low_band_floor, low_band_ceiling,
                                                 high_band_floor, high_band_ceiling)
-    
+    attributes["band_density_difference"] = call(spectrum, "Get band density difference", 
+                                                low_band_floor, low_band_ceiling,
+                                                high_band_floor, high_band_ceiling)
+    attributes["center_of_gravity_spectrum"] = call(spectrum, "Get centre of gravity", power)
+    attributes["stddev_spectrum"] = call(spectrum, "Get standard deviation", power)
+    attributes["skewness_spectrum"] = call(spectrum, "Get skewness", power)
+    attributes["kurtosis_spectrum"] = call(spectrum, "Get kurtosis", power)
+    attributes["central_moment_spectrum"] = call(spectrum, "Get central moment", moment, power)
+
+    spectrum_values = None
+    if return_values:
+        spectrum_values = []
+        for bin_no in range(len(spectrum)):
+            spectrum_value = call(spectrum, "Get real value in bin", bin_no)
+            if math.isnan(spectrum_value):
+                spectrum_values.append(replacement_for_nan)
+            else:
+                spectrum_values.append(spectrum_value)
+    return attributes, spectrum_values
+
+
 
 def get_formant_attributes(audio_file:parselmouth.Sound,
                             time_step:float=0.0,
@@ -255,13 +279,91 @@ def get_formant_attributes(audio_file:parselmouth.Sound,
     Function to get formant-related attributes such as mean and median formants.
     NOTE: All frequency units are 'Hertz' in this function.
     """
-    pass
+    # Converting audio to point process
+    point_process = call(audio_file, "To PointProcess (periodic, cc)", pitch_floor, pitch_ceiling)
+    # Converting audio to formant
+    formant = call(audio_file, "To Formant (burg)", time_step, max_num_formants, 
+                                                            max_formant, window_length, pre_emphasis_frequency)
+    
+    num_points = call(point_process, "Get number of points")
+    if num_points == 0:
+        return dict(), None
+    
+    f1_list, f2_list, f3_list, f4_list = [], [], [], []
 
+    # Meansure formants
+    for point in range(1, num_points + 1):
+        time = call(point_process, "Get time from index", point)
+        f1 = call(formant, "Get value at time", 1, time, unit, interpolation)
+        f2 = call(formant, "Get value at time", 2, time, unit, interpolation)
+        f3 = call(formant, "Get value at time", 3, time, unit, interpolation)
+        f4 = call(formant, "Get value at time", 4, time, unit, interpolation)
+        
+        if math.isnan(f1):
+            f1 = replacement_for_nan
+        if math.isnan(f2):
+            f2 = replacement_for_nan
+        if math.isnan(f3):
+            f3 = replacement_for_nan
+        if math.isnan(f4):
+            f4 = replacement_for_nan
+        
+        f1_list.append(f1)
+        f2_list.append(f2)
+        f3_list.append(f3)
+        f4_list.append(f4)
+
+        attributes = dict()
+        # Calculate mean, median formants across pulse
+        attributes["f1_mean"] = np.mean(f1_list)
+        attributes["f2_mean"] = np.mean(f2_list)
+        attributes["f3_mean"] = np.mean(f3_list)
+        attributes["f4_mean"] = np.mean(f4_list)
+        attributes["f1_median"] = np.median(f1_list)
+        attributes["f2_median"] = np.median(f2_list)
+        attributes["f3_median"] = np.median(f3_list)
+        attributes["f4_median"] = np.median(f4_list)
+
+        attributes["formant_dispersion"] = (attributes["f4_median"] - attributes["f1_median"]) / 3
+        attributes["average_formant"] = (attributes["f1_median"] + attributes["f2_median"] + 
+                                        attributes["f3_median"] + attributes["f4_median"]) / 4
+        attributes["mff"] = (attributes["f1_median"] * attributes["f2_median"] * 
+                            attributes["f3_median"] * attributes["f4_median"]) ** 0.25
+        # attributes["fitch_vtl"] = ((1 * (35000 / (4 * attributes["f1_median"] + 1e-5))) + 
+        #                             (3 * (35000 / (4 * attributes["f2_median"] + 1e-5))) + 
+        #                             (5 * (35000 / (4 * attributes["f3_median"] + 1e-5))) + 
+        #                             (7 * (35000 / (4 * attributes["f4_median"] + 1e-5)))) / 4
+        # xy_sum = ((0.5 * attributes["f1_median"]) + (1.5 * attributes["f2_median"]) + 
+        #             (2.5 * attributes["f3_median"]) + (3.5 * attributes["f4_median"]))
+        # x_squared_sum = ((0.5 ** 2) + (1.5 ** 2) + (2.5 ** 2) + (3.5 ** 2))
+        # attributes["delta_f"] = xy_sum / (x_squared_sum + 1e-5)
+        # attributes["vtl_delta_f"] = 35000 / (2 * attributes["delta_f"] + 1e-5)
+        
+        if attributes["f1_median"] == 0 or attributes["f2_median"] == 0 or attributes["f3_median"] == 0 or attributes["f4_median"] == 0:
+            attributes["fitch_vtl"] = 0.0
+            attributes["delta_f"] = 0.0
+            attributes["vtl_delta_f"] = 0.0
+        else:
+            attributes["fitch_vtl"] = (1 * (35000 / (4 * attributes["f1_median"])) + 
+                                       3 * (35000 / (4 * attributes["f2_median"])) + 
+                                       5 * (35000 / (4 * attributes["f3_median"])) + 
+                                       7 * (35000 / (4 * attributes["f4_median"]))) / 4
+            
+            xy_sum = ((0.5 * attributes["f1_median"]) + (1.5 * attributes["f2_median"]) + 
+                        (2.5 * attributes["f3_median"]) + (3.5 * attributes["f4_median"]))
+            x_squared_sum = ((0.5 ** 2) + (1.5 ** 2) + (2.5 ** 2) + (3.5 ** 2))
+            
+            attributes["delta_f"] = xy_sum / x_squared_sum
+            attributes["vtl_delta_f"] = 35000 / (2 * attributes["delta_f"])
+
+
+        return attributes, None
 
 ## Cepstral (Timbral)
 def get_mfcc(audio_file:parselmouth.Sound,
+            num_coefficients:int=12,
             window_length:float=0.015,
-            tkme_step:float=0.005,
+            time_step:float=0.005,
             first_filter_frequency:float=100.0,
             distance_between_filters:float=100.0,
             maximum_frequency:float=0.0,
@@ -269,7 +371,16 @@ def get_mfcc(audio_file:parselmouth.Sound,
     """
     Function to calculate the MFCC (Mel Frequency Cepstral Coefficients).
     """
-    pass
+    mfcc = call(audio_file, "To MFCC", num_coefficients, window_length, time_step,
+                first_filter_frequency, distance_between_filters, maximum_frequency)
+
+    num_frames = call(mfcc, "Get number of frames")
+    mfcc_matrix = np.zeros((num_frames, num_coefficients))
+    for frame in range(1, num_frames + 1):
+        for coefficient in range(1, num_coefficients + 1):
+            mfcc_matrix[frame - 1, coefficient - 1] = call(mfcc, "Get value at time", frame, coefficient)
+
+    return mfcc_matrix
 
 # def get_lfcc(audio_file:parselmouth.Sound,
 #                 lpc_method:str="autocorrelation",
