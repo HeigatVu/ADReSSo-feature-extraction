@@ -116,6 +116,7 @@ def transcribe_audio_files(
             results.append({
                 "files_id": audio_file.stem,
                 "mmse_score": patient_row["mmse"].values[0],
+                "audio_path": str(audio_file),
                 "diagnosis": diagnosis,
                 "transcript": transcript,
                 })

@@ -36,18 +36,17 @@ def process_feature(audio_path:str, csv_segment_path:str, transcript_path:str, p
 if __name__ == "__main__":
     BASE_PATH = "/mnt/data_lab513/ducvu/ADReSSo/ADReSSo-feature-extration"
     TRANSCRIPT_PATH = f"{BASE_PATH}/output/transcripts"
-    AUDIO_PATH = "/mnt/data_lab513/ducvu/ADReSSo/ADReSSo-feature-extration/data/diagnosis/train/audio"
-    CSV_PATH = "/mnt/data_lab513/ducvu/ADReSSo/ADReSSo-feature-extration/data/diagnosis/train/segmentation"
-    MMSE_PATH = "/mnt/data_lab513/ducvu/ADReSSo/ADReSSo-feature-extration/data/diagnosis/train/adresso-train-mmse-scores.csv"
-
+    CSV_PATH = f"{BASE_PATH}/data/diagnosis/train/segmentation"
     
+    transcript_files = glob.glob(TRANSCRIPT_PATH + "/*.csv")[0]
+    df_patient_info = pd.read_csv(transcript_files)
+    transcript = df_patient_info["transcript"]
+    patient_id = df_patient_info["files_id"]
+    audio_path = df_patient_info["audio_path"]
+    csv_segment_path = glob.glob(CSV_PATH + "/ad/*.csv") + glob.glob(CSV_PATH + "/cn/*.csv")
+    print(len(csv_segment_path))
 
-    # transcript_files = glob.glob(TRANSCRIPT_PATH + "/*.csv")[0]
-    # df = pd.read_csv(transcript_files)
-    # test_transcript = df["transcript"][0]
-    # test_patient_id = df["files_id"][0]
 
-    # df_mmse = pd.read_csv(MMSE_PATH)
 
     # df_feature = process_feature(AUDIO_PATH, CSV_PATH, transcript_files, test_patient_id, lang="en")
 
