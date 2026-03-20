@@ -3,8 +3,10 @@ import src.utils as utils
 import glob
 import pandas as pd
 from pathlib import Path
+import tqdm
 
 def process_feature(audio_path:str, csv_segment_path:str, transcript_path:str, patient_id:str, lang:str="en") -> pd.DataFrame:
+    
     processed_linguistic_feature = utils.process_linguistic_features(transcript_path, patient_id, lang=lang)
     processed_acoustic_feature = utils.process_acoustic_features(audio_path, csv_segment_path, transcript_path)
     
@@ -27,8 +29,6 @@ def process_feature(audio_path:str, csv_segment_path:str, transcript_path:str, p
     combined_features = {**flat_ling, **flat_acoustic}
     df_combined = pd.DataFrame([combined_features])
 
-
-    
     return df_combined
 
 
@@ -37,23 +37,32 @@ if __name__ == "__main__":
     BASE_PATH = "/mnt/data_lab513/ducvu/ADReSSo/ADReSSo-feature-extration"
     TRANSCRIPT_PATH = f"{BASE_PATH}/output/transcripts"
     CSV_PATH = f"{BASE_PATH}/data/diagnosis/train/segmentation"
+    OUTPUT_FEATURE_PATH = f"{BASE_PATH}/output/features"
+
+    output_feature_file = Path(OUTPUT_FEATURE_PATH) / f"adresso_features.csv"
+    Path(OUTPUT_FEATURE_PATH).mkdir(parents=True, exist_ok=True)
     
     transcript_files = glob.glob(TRANSCRIPT_PATH + "/*.csv")[0]
-    df_patient_info = pd.read_csv(transcript_files)
-    transcript = df_patient_info["transcript"]
-    patient_id = df_patient_info["files_id"]
-    audio_path = df_patient_info["audio_path"]
-    csv_segment_path = glob.glob(CSV_PATH + "/ad/*.csv") + glob.glob(CSV_PATH + "/cn/*.csv")
-    print(len(csv_segment_path))
-
-
-
-    # df_feature = process_feature(AUDIO_PATH, CSV_PATH, transcript_files, test_patient_id, lang="en")
-
-    # OUTPUT_PATH = f"{BASE_PATH}/output/features"
-    # output_file = Path(OUTPUT_PATH) / f"adresso_features.csv"
+    # Sample information and data
+    df_sample_info = pd.read_csv(transcript_files)
+    transcript = df_sample_info["transcript"]
+    patient_id = df_sample_info["files_id"]
+    audio_path = df_sample_info["audio_path"]
     
-    # # Add this line to create the directory if it doesn't exist
-    # Path(OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
-    
-    # df_feature.to_csv(output_file, index=False)
+    # Diazrization of samples
+    diagnosis_list = df_sample_info["diagnosis"]
+
+    df_feature = pd.DataFrame()
+    for i in tqdm.tqdm(range(len(df_sample_info))):
+        patient = patient_id[i]
+        diag = diagnosis_list[i]
+        segment_file = f"{CSV_PATH}/{diag}/{patient}.csv"
+        
+        # Ensure we skip if there are no PAR segments in the CSV
+        if os.path.exists(segment_file):
+            df_segment = pd.read_csv(segment_file)
+            if "PAR" not in df_segment["speaker"].values:
+                continue
+            
+        df_feature = pd.concat([df_feature, process_feature(audio_path[i], segment_file, transcript_files, patient, lang="en")], ignore_index=True)
+    df_feature.to_csv(output_feature_file, index=False)

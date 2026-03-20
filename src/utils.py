@@ -36,8 +36,12 @@ def process_acoustic_features(audio_path:str, diarization_segment_path:str, tran
     # Load audio file
     full_sound = parselmouth.Sound(audio_path)
 
-    # Transcript
-    df_transcript = pd.read_csv(transcript_segment_path)
+    # Check matching patient id
+    df_original_transcript = pd.read_csv(transcript_segment_path)
+    if "files_id" in df_original_transcript.columns:
+        patient_id = Path(audio_path).stem
+        df_transcript = df_original_transcript[df_original_transcript["files_id"] == patient_id]
+
     transcript = " ".join(df_transcript["transcript"].dropna().astype(str))
 
     # Load the diarization csv
@@ -89,31 +93,38 @@ def process_acoustic_features(audio_path:str, diarization_segment_path:str, tran
     # Convert to DataFrame
     df_segment_features = pd.DataFrame(segment_features_list)
 
-    # Patient statistic
-    patient_profile = df_segment_features.drop(columns=["segment_id", "start_time", "end_time"]).agg(["mean", "std"]).unstack()
+    if df_segment_features.empty:
+        patient_profile = pd.Series(dtype=float)
+    else:
+        patient_profile = df_segment_features.drop(columns=["segment_id", "start_time", "end_time"], errors="ignore").agg(["mean", "std"]).unstack()
 
     return df_segment_features, patient_profile
 
 
-def process_linguistic_features(transcript_path:str, patient_id:str, lang:str="en") -> dict:
+def process_linguistic_features(whisper_transcript_path:str, patient_id:str, lang:str="en") -> dict:
     """
     Extract linguistic features from transcript csv
     """
-    df_transcript = pd.read_csv(transcript_path)
+
+    # Check matching patient id
+    df_whisper_transcript = pd.read_csv(whisper_transcript_path)
+    if "files_id" in df_whisper_transcript.columns:
+        df_whisper_transcript = df_whisper_transcript[df_whisper_transcript["files_id"] == patient_id]
+        
     # Extract the string from the first row, or join them if there are multiple
-    transcript = " ".join(df_transcript["transcript"].dropna().astype(str))
+    whisper_transcript = " ".join(df_whisper_transcript["transcript"].dropna().astype(str))
 
     # Feature
-    cttr, brunet, std_entropy, pidensity = linguisticFeature.lexical_richness(transcript, lang=lang)
-    pos_tagged_data, polarity, subjectivity = linguisticFeature.pos_polarity_subjectivity(transcript, lang=lang)
+    cttr, brunet, std_entropy, pidensity = linguisticFeature.lexical_richness(whisper_transcript, lang=lang)
+    pos_tagged_data, polarity, subjectivity = linguisticFeature.pos_polarity_subjectivity(whisper_transcript, lang=lang)
     tag_count = linguisticFeature.tag_count(pos_tagged_data)
     pos_rate = linguisticFeature.evaluate_pos_rate(tag_count)
     content_density = tag_count["content_density"]
     open_class_words = tag_count["open_class_words"]
     closed_class_words = tag_count["closed_class_words"]
-    disfluency_count = linguisticFeature.count_disfluency(transcript, lang=lang)
-    person_rate, spatial_rate, temporal_rate = linguisticFeature.evaluate_deixis(transcript, lang=lang)
-    dale_chall, flesch, coleman_liau_index, r_time, syllables = linguisticFeature.evaluate_readability(transcript)
+    disfluency_count = linguisticFeature.count_disfluency(whisper_transcript, lang=lang)
+    person_rate, spatial_rate, temporal_rate = linguisticFeature.evaluate_deixis(whisper_transcript, lang=lang)
+    dale_chall, flesch, coleman_liau_index, r_time, syllables = linguisticFeature.evaluate_readability(whisper_transcript)
 
 
     result = {
