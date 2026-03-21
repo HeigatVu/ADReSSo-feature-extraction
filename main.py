@@ -5,7 +5,12 @@ from pathlib import Path
 if __name__ == "__main__":
     BASE_PATH = "/mnt/data_lab513/ducvu/ADReSSo/ADReSSo-feature-extration"
     TRANSCRIPT_PATH = f"{BASE_PATH}/output/transcripts"
-    CSV_PATH = f"{BASE_PATH}/data/diagnosis/train/segmentation"
+    CSV_SEGMENT_PATH = f"{BASE_PATH}/data/diagnosis/train/segmentation"
     OUTPUT_FEATURE_PATH = f"{BASE_PATH}/output/features"
 
-    utils.feature_extraction(OUTPUT_FEATURE_PATH, TRANSCRIPT_PATH, CSV_PATH)
+    utils.feature_extraction(OUTPUT_FEATURE_PATH, TRANSCRIPT_PATH, CSV_SEGMENT_PATH,
+                                use_egemap02=False, use_compare=False, linguistic=True)
+    utils.feature_extraction(OUTPUT_FEATURE_PATH, TRANSCRIPT_PATH, CSV_SEGMENT_PATH,
+                                use_egemap02=True, use_compare=False, linguistic=False)
+    utils.feature_extraction(OUTPUT_FEATURE_PATH, TRANSCRIPT_PATH, CSV_SEGMENT_PATH,
+                                use_egemap02=False, use_compare=True, linguistic=False)

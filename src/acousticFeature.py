@@ -409,15 +409,17 @@ def get_mfcc(audio_file:parselmouth.Sound,
 
 
 # Feature openSMILE
-# Option 1 — Small, clinically validated (recommended to start)
-smile = opensmile.Smile(
-    feature_set=opensmile.FeatureSet.eGeMAPSv02,     # 88 features
-    feature_level=opensmile.FeatureLevel.Functionals,
-)
+def get_opensmile_feature(audio_path:str, start_time:float, end_time:float, feature_compare2016:bool=False):
+    if feature_compare2016:
+        smile = opensmile.Smile(
+            feature_set=opensmile.FeatureSet.ComParE_2016,   # 6373 features
+            feature_level=opensmile.FeatureLevel.Functionals,
+        )
+    else:
+        smile = opensmile.Smile(
+            feature_set=opensmile.FeatureSet.eGeMAPSv02,     # 88 features
+            feature_level=opensmile.FeatureLevel.Functionals,
+        )
 
-# Option 2 — Large, best ML performance
-smile = opensmile.Smile(
-    feature_set=opensmile.FeatureSet.ComParE_2016,   # 6373 features
-    feature_level=opensmile.FeatureLevel.Functionals,
-)
-
+    feature_df = smile.process_file(audio_path, start_time=start_time, end_time=end_time)
+    return feature_df.iloc[0].to_dict()
