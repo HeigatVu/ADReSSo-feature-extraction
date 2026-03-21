@@ -3,7 +3,6 @@ import numpy as np
 import parselmouth
 from parselmouth.praat import call
 import opensmile
-import librosa
 
 
 # Feature PRAAT

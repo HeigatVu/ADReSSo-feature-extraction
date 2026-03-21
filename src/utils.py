@@ -218,7 +218,7 @@ def process_feature(audio_path:str, csv_segment_path:str,
         df_opensmile_features = process_acoustic_features_opensmile(
             audio_path, csv_segment_path, transcript_path, use_compare=use_compare)
     else:
-        df_praat_features = process_acoustic_features_praat(
+        _, df_praat_features = process_acoustic_features_praat(
             audio_path, csv_segment_path, transcript_path)
     
     # patient_id and diagnosis always appear as first columns in both DataFrames

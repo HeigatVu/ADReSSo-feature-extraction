@@ -38,7 +38,7 @@ def lexical_richness(transcript:str, lang:str="en") -> tuple[float]:
     freqs = Counter(words) # Frequency of each word in transcript
     V = len(freqs) # Unique words
 
-    # Corrected type-token radio // https://lexicalrichness.readthedocs.io/en/latest/docstring_docs.html
+    # Corrected type-token ratio // https://lexicalrichness.readthedocs.io/en/latest/docstring_docs.html
     if N > 0:
         cttr = round(V/math.sqrt(2*N), 2)
     else:
