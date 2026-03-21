@@ -11,6 +11,8 @@ from src import linguisticFeature
 
 import parselmouth
 
+# import warnings
+
 def get_audio_files(audio_path:str) -> dict[str, List[str]]:
     """Load all audio files from ADReSSo structure
     """
@@ -231,7 +233,10 @@ def process_feature(audio_path:str, csv_segment_path:str,
                     use_egemap02:bool=False, use_compare:bool=False, linguistic:bool=True) -> pd.DataFrame:
     """ Process all features
     """
-    processed_linguistic_feature = process_linguistic_features(transcript_path, patient_id, lang=lang)
+    if linguistic:
+        processed_linguistic_feature = process_linguistic_features(transcript_path, patient_id, lang=lang)
+    else:
+        processed_linguistic_feature = {}
     if use_egemap02 or use_compare:
         _, patient_profile_series = process_acoustic_features_opensmile(
             audio_path, csv_segment_path, transcript_path, use_compare=use_compare)
@@ -246,6 +251,8 @@ def process_feature(audio_path:str, csv_segment_path:str,
     if linguistic:
         flat_ling = {**meta}
         for k, v in processed_linguistic_feature.items():
+            if k == "patient_id":       # already added via meta, skip duplicate
+                continue
             if isinstance(v, dict):
                 for sub_k, sub_v in v.items():
                     flat_ling[f"{k}_{sub_k}"] = sub_v
@@ -266,11 +273,11 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
     
     # Extract acoustic feature
     if use_egemap02:
-        output_acoustic_file = Path(output_dir) / "adresso_features_praat.csv"
+        output_acoustic_file = Path(output_dir) / "adresso_features_egemaps.csv"
     elif use_compare:
         output_acoustic_file = Path(output_dir) / "adresso_features_compare.csv"
     else:
-        output_acoustic_file = Path(output_dir) / "adresso_features_egemaps.csv"
+        output_acoustic_file = Path(output_dir) / "adresso_features_praat.csv"
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Linguistic features are independent of acoustic method
@@ -285,8 +292,8 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
     audio_path = df_sample_info["audio_path"]
     diagnosis_list = df_sample_info["diagnosis"]
     
-    df_linguistic = pd.DataFrame()
-    df_acoustic = pd.DataFrame()
+    df_ling_list = []
+    df_acoustic_list = []
 
     if linguistic:
         print("Extracting linguistic features...")
@@ -296,16 +303,24 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
         print("Extracting acoustic features using ComParE...")
     else:
         print("Extracting acoustic features using Praat...")
+        
+
+    # warnings.filterwarnings("ignore", category=RuntimeWarning)
+    # warnings.filterwarnings("ignore", category=FutureWarning)
+
     for i in tqdm(range(len(df_sample_info))):
         patient = patient_id[i]
         diag = diagnosis_list[i]
         segment_file = f"{csv_segment_path}/{diag}/{patient}.csv"
         
         # Eliminate the samples without interviewee saying
-        if os.path.exists(segment_file):
-            df_segment = pd.read_csv(segment_file)
-            if "PAR" not in df_segment["speaker"].values:
-                continue
+        if not os.path.exists(segment_file):
+            continue
+            
+        df_segment = pd.read_csv(segment_file)
+        if "PAR" not in df_segment["speaker"].values:
+            continue
+            
         df_ling_row, df_acoustic_row = process_feature(
             audio_path[i], segment_file, transcript_files, patient, diag,
             lang="en",
@@ -315,10 +330,17 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
         )
 
         if linguistic:
-            df_linguistic = pd.concat([df_linguistic, df_ling_row], ignore_index=True)
-        df_acoustic = pd.concat([df_acoustic, df_acoustic_row], ignore_index=True)
+            df_ling_list.append(df_ling_row)
+        df_acoustic_list.append(df_acoustic_row)
 
-    if linguistic:
+        break
+
+    if linguistic and df_ling_list:
+        df_linguistic = pd.concat(df_ling_list, ignore_index=True)
         df_linguistic.to_csv(output_linguistic_file, index=False)
-    df_acoustic.to_csv(output_acoustic_file, index=False)
+        
+    if df_acoustic_list:
+        df_acoustic = pd.concat(df_acoustic_list, ignore_index=True)
+        df_acoustic.to_csv(output_acoustic_file, index=False)
+        
     print("Feature extraction completed")

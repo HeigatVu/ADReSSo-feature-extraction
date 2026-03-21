@@ -3,6 +3,7 @@ import numpy as np
 import parselmouth
 from parselmouth.praat import call
 import opensmile
+import librosa
 
 
 # Feature PRAAT
@@ -261,8 +262,6 @@ def get_spectrum_attributes(audio_file:parselmouth.Sound,
                 spectrum_values.append(spectrum_value)
     return attributes, spectrum_values
 
-
-
 def get_formant_attributes(audio_file:parselmouth.Sound,
                             time_step:float=0.0,
                             pitch_floor:float=75.0,
@@ -409,11 +408,15 @@ def get_mfcc(audio_file:parselmouth.Sound,
 
 
 # Feature openSMILE
-def get_opensmile_feature(audio_path:str, start_time:float, end_time:float, feature_compare2016:bool=False) -> dict:
+import soundfile as sf
+import tempfile
+
+def get_opensmile_features(audio_path:str, start_time:float, 
+                            end_time:float, use_compare:bool=False) -> dict:
     """
     Function to get opensmile feature (default: eGeMAPSv02).
     """
-    if feature_compare2016:
+    if use_compare:
         smile = opensmile.Smile(
             feature_set=opensmile.FeatureSet.ComParE_2016,   # 6373 features
             feature_level=opensmile.FeatureLevel.Functionals,
@@ -424,5 +427,6 @@ def get_opensmile_feature(audio_path:str, start_time:float, end_time:float, feat
             feature_level=opensmile.FeatureLevel.Functionals,
         )
 
-    feature_df = smile.process_file(audio_path, start_time=start_time, end_time=end_time)
+    sig, sampl_rate = librosa.load(audio_path, sr=None, offset=start_time, duration=end_time - start_time)
+    feature_df = smile.process_signal(sig, sampl_rate)
     return feature_df.iloc[0].to_dict()

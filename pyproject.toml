@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "en-core-web-sm",
     "ideadensity>=0.5.1",
+    "librosa>=0.11.0",
     "numpy>=2.4.3",
     "opensmile>=2.6.0",
     "pandas>=3.0.1",
