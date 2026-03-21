@@ -2,10 +2,10 @@ import math
 import numpy as np
 import parselmouth
 from parselmouth.praat import call
-import pandas as pd
+import opensmile
 
 
-# Feature Utils
+# Feature PRAAT
 ## Prosody and Fluency
 def get_intensity_attributes(audio_file:parselmouth.Sound, 
                                 time_step:float=0.0, 
@@ -405,3 +405,19 @@ def get_mfcc(audio_file:parselmouth.Sound,
 #     If get the delta on this resulting velocity -> get the acceleration of MFCCs.
 #     """
 #     pass
+
+
+
+# Feature openSMILE
+# Option 1 — Small, clinically validated (recommended to start)
+smile = opensmile.Smile(
+    feature_set=opensmile.FeatureSet.eGeMAPSv02,     # 88 features
+    feature_level=opensmile.FeatureLevel.Functionals,
+)
+
+# Option 2 — Large, best ML performance
+smile = opensmile.Smile(
+    feature_set=opensmile.FeatureSet.ComParE_2016,   # 6373 features
+    feature_level=opensmile.FeatureLevel.Functionals,
+)
+

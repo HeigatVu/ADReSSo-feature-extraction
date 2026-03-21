@@ -5,8 +5,6 @@ import math
 from ideadensity import depid
 from textblob import TextBlob
 from spacy.tokens import Doc
-import pandas as pd
-import re
 import textstat
 
 # Traditional Linguistic features

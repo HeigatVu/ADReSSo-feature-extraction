@@ -3,7 +3,6 @@ from typing import Dict, List
 from pathlib import Path
 
 import pandas as pd
-import torch
 from tqdm.auto import tqdm
 import glob
 
@@ -157,8 +156,8 @@ def process_linguistic_features(whisper_transcript_path:str, patient_id:str, lan
 
 def process_feature(audio_path:str, csv_segment_path:str, transcript_path:str, patient_id:str, lang:str="en") -> pd.DataFrame:
     
-    processed_linguistic_feature = utils.process_linguistic_features(transcript_path, patient_id, lang=lang)
-    processed_acoustic_feature = utils.process_acoustic_features(audio_path, csv_segment_path, transcript_path)
+    processed_linguistic_feature = process_linguistic_features(transcript_path, patient_id, lang=lang)
+    processed_acoustic_feature = process_acoustic_features(audio_path, csv_segment_path, transcript_path)
     
     # Flatten linguistic features
     flat_ling = {}
@@ -196,7 +195,7 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
     diagnosis_list = df_sample_info["diagnosis"]
 
     df_feature = pd.DataFrame()
-    for i in tqdm.tqdm(range(len(df_sample_info))):
+    for i in tqdm(range(len(df_sample_info))):
         patient = patient_id[i]
         diag = diagnosis_list[i]
         segment_file = f"{csv_segment_path}/{diag}/{patient}.csv"
