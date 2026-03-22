@@ -1,7 +1,7 @@
-import os
-import src.utils as utils
-from pathlib import Path
-import pandas as pd
+from src import utils
+from src import feature_extraction_pipeline
+from src import transcript_pipeline
+
 import torch
 
 def main(transcript:bool=False, 
@@ -57,6 +57,7 @@ def main(transcript:bool=False,
                                 whisper_transcript_path=whisper_transcript_path,
                                 data_type="train", 
                                 use_egemap02=False, use_compare=True, linguistic=False)
+        print("finish feature extraction train set")
 
         # Data extraction TEST
         # Extract test linguistic features and praat feature
@@ -68,12 +69,13 @@ def main(transcript:bool=False,
         utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
                                 whisper_transcript_path=whisper_transcript_path,
                                 data_type="test", 
-                                usde_egemap02=True, use_compare=False, linguistic=False)
+                                use_egemap02=True, use_compare=False, linguistic=False)
         # Extract test ComParE features
         utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
                                 whisper_transcript_path=whisper_transcript_path,
                                 data_type="test", 
                                 use_egemap02=False, use_compare=True, linguistic=False)
+        print("finish feature extraction test set")
         return f"finish feature extraction train and test set"
 
     if feature_selection:
