@@ -1,6 +1,10 @@
 from typing import Dict, List
 from pathlib import Path
 from omegaconf import OmegaConf
+import pandas as pd
+import numpy as np
+import pickle
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 def load_yaml(yaml_path:str) -> dict:
     """Load YAML file and set BASE_PATH to project root
@@ -30,3 +34,59 @@ def get_files(audio_path:str,
     
     return audio_files
 
+def csv_to_pkl(csv_path:str, 
+                pkl_path:str, 
+                label_col:str="diagnosis", 
+                id_col:str="patient_id",
+                mmse_col:str="mmse",
+                lang_col:str="lang") -> None:
+    """Convert CSV file to PKL file for processing
+    """
+
+    df = pd.read_csv(csv_path)
+    df_copy = df.copy()
+    
+    feature_cols = []
+    for col in df.columns:
+        if col not in [id_col, label_col, mmse_col, lang_col]:
+            feature_cols.append(col)
+    
+    # Handle missing value
+    n_missing_value = df_copy[feature_cols].isnull().sum().sum()
+    if n_missing_value > 0:
+        df_copy[feature_cols] = df_copy[feature_cols].fillna(0)
+
+    # Mapping label
+    label_map = {
+        "ad": 1,
+        "cn": 0
+    }
+
+    df_copy["label"] = df_copy[label_col].map(label_map)
+    df_copy["label"] = df_copy["label"].astype(int)
+
+    out = pd.DataFrame({
+        "pid": df_copy[id_col].astype(str).str.extract(r'(\d+)', expand=False).astype(int),
+        "label": df_copy["label"],
+        "mmse": df_copy[mmse_col],
+        "data": list(df_copy[feature_cols].values.astype(np.float32))
+    })
+
+    Path(pkl_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(pkl_path, "wb") as f:
+        pickle.dump(out, f)
+
+
+def load_pkl(pkl_path:str) -> pd.DataFrame:
+    """Load PKL file and return DataFrame
+    """
+    with open(pkl_path, "rb") as f:
+        data = pickle.load(f)
+    return pd.DataFrame(data)
+
+def fit_scaler(X:pd.DataFrame) -> tuple[np.ndarray, StandardScaler]:
+    """Fit scaler to training data and return scaled data
+    """
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    return X_scaled, scaler

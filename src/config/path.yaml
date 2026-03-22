@@ -1,8 +1,11 @@
-BASE_PATH: "" # Auto-extracted to project root by src/utils.py
+BASE_PATH: ""
 OUTPUT_FEATURE_PATH: "${BASE_PATH}/output/features"
 
 # Extract transcripts
 TRANSCRIPT_PATH: "${BASE_PATH}/output/transcripts"
+
+# PKL files
+PKL_PATH: "${BASE_PATH}/output/pkl/features"
 
 train:
     CSV_SEGMENT_TRAIN_PATH: "${BASE_PATH}/data/diagnosis/train/segmentation"

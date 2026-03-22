@@ -204,6 +204,7 @@ def process_feature(audio_path:str,
                     transcript_path:str, 
                     patient_id:str, 
                     diagnosis:str, 
+                    mmse:int,
                     lang:str="en",
                     use_egemap02:bool=False, 
                     use_compare:bool=False, 
@@ -222,7 +223,7 @@ def process_feature(audio_path:str,
             audio_path, csv_segment_path, transcript_path)
     
     # patient_id and diagnosis always appear as first columns in both DataFrames
-    meta = {"patient_id": patient_id, "diagnosis": diagnosis}
+    meta = {"patient_id": patient_id, "diagnosis": diagnosis, "mmse": mmse}
 
     # Flatten linguistic features
     if linguistic:
@@ -261,16 +262,16 @@ def extract_features(output_dir: str,
     
     # Extract acoustic feature
     if use_egemap02:
-        output_acoustic_file = Path(output_dir) / f"adresso_features_egemaps_{data_type}.csv"
+        output_acoustic_file = Path(output_dir) / f"adresso_egemaps_{data_type}.csv"
     elif use_compare:
-        output_acoustic_file = Path(output_dir) / f"adresso_features_compare_{data_type}.csv"
+        output_acoustic_file = Path(output_dir) / f"adresso_compare_{data_type}.csv"
     else:
-        output_acoustic_file = Path(output_dir) / f"adresso_features_praat_{data_type}.csv"
+        output_acoustic_file = Path(output_dir) / f"adresso_praat_{data_type}.csv"
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Linguistic features are independent of acoustic method
     if linguistic:
-        output_linguistic_file = Path(output_dir) / f"adresso_features_linguistic_{data_type}.csv"
+        output_linguistic_file = Path(output_dir) / f"adresso_linguistic_{data_type}.csv"
 
     transcript_files = glob.glob(whisper_transcript_path + f"/adresso_transcripts_{data_type}.csv")
     transcript_files = transcript_files[0]
@@ -281,6 +282,7 @@ def extract_features(output_dir: str,
     audio_path = df_sample_info["audio_path"]
     diagnosis_list = df_sample_info["diagnosis"]
     segment_path_list = df_sample_info["segment_path"]
+    mmse_list = df_sample_info["mmse_score"]
     
     df_ling_list = []
     df_acoustic_list = []
@@ -298,6 +300,7 @@ def extract_features(output_dir: str,
         patient = patient_id[i]
         diag = diagnosis_list[i]
         segment_file = segment_path_list[i]
+        mmse = mmse_list[i]
         
         # Eliminate the samples without interviewee saying
         if not os.path.exists(segment_file):
@@ -308,7 +311,7 @@ def extract_features(output_dir: str,
             continue
             
         df_ling_row, df_acoustic_row = process_feature(
-            audio_path[i], segment_file, transcript_files, patient, diag,
+            audio_path[i], segment_file, transcript_files, patient, diag, mmse,
             lang="en",
             use_egemap02=use_egemap02,
             use_compare=use_compare,

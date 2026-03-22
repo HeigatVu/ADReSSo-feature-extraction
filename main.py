@@ -1,12 +1,19 @@
 from src import utils
 from src import feature_extraction_pipeline
 from src import transcription_pipeline
+from src.models import featureSelection
+import glob
+from pathlib import Path
+import pandas as pd
+import numpy as np
 
 import torch
 
 def main_traditional_approach(transcript:bool=False, 
                             feature:bool=False, 
+                            pkl:bool=False,
                             feature_selection:bool=False) -> str:
+
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Transcribe audio files
@@ -78,6 +85,17 @@ def main_traditional_approach(transcript:bool=False,
         print("finish feature extraction test set")
         return f"finish feature extraction train and test set"
 
+    if pkl:
+        path_config = utils.load_yaml("src/config/path.yaml")
+        pkl_path = path_config["PKL_PATH"]
+        feature_path = path_config["OUTPUT_FEATURE_PATH"]
+        feature_list_files = glob.glob(feature_path + "/*.csv")
+        for feature_file in feature_list_files:
+            feature_file_name = Path(feature_file).stem
+            pkl_file_path = pkl_path + "/" + feature_file_name + ".pkl"
+            utils.csv_to_pkl(csv_path=feature_file, pkl_path=pkl_file_path)
+        return f"finish converting to pkl train and test set"
+
     if feature_selection:
         pass
         return f"finish feature selection on train dataset"
@@ -85,4 +103,29 @@ def main_traditional_approach(transcript:bool=False,
 
 if __name__ == "__main__":
 
-    main_traditional_approach(transcript=False, feature=True)
+    main_traditional_approach(transcript=False, feature=False, pkl=False)
+
+    path_config = utils.load_yaml("src/config/path.yaml")
+    # Feature name for ANOVA
+    feature_name = "linguistic"
+    df_csv = pd.read_csv(path_config["OUTPUT_FEATURE_PATH"] + "/" + "adresso_" + feature_name + "_train.csv")
+    feature_name_list = []
+    for col in df_csv.columns:
+        if col in ["patient_id", "diagnosis", "mmse", "lang"]:
+            continue
+        feature_name_list.append(col)
+    k = 10
+    df_train = utils.load_pkl(path_config["PKL_PATH"] + "/" + "adresso_" + feature_name + "_train.pkl")
+    df_test = utils.load_pkl(path_config["PKL_PATH"] + "/" + "adresso_" + feature_name + "_test.pkl")
+
+    X_train = np.array(df_train["data"].tolist())
+    y_train = df_train["label"]
+    X_test = np.array(df_test["data"].tolist())
+    y_test = df_test["label"]
+
+    X_train_scaled, scaler = utils.fit_scaler(X_train)
+    # Important: use the scaler fitted on the training data to transform the test data!
+    X_test_scaled = scaler.transform(X_test)
+
+    X_train_sel, X_test_sel, selector = featureSelection.select_anova(X_train_scaled, y_train, X_test_scaled, 
+                                                                    k=k, feature_names=feature_name_list)
