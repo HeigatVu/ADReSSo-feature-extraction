@@ -25,7 +25,13 @@ from sklearn.model_selection import train_test_split
 from omegaconf import OmegaConf
 
 def load_yaml(yaml_path:str) -> dict:
-    return OmegaConf.load(yaml_path)
+    """Load YAML file and set BASE_PATH to project root
+    """
+    conf = OmegaConf.load(yaml_path)
+    if "BASE_PATH" in conf:
+        project_root = str(Path(__file__).parent.parent.absolute())
+        conf.BASE_PATH = project_root
+    return conf
 
 
 def get_files(audio_path:str, 
@@ -427,29 +433,30 @@ def process_feature(audio_path:str,
 
 
 # Extract all features
-def feature_extraction(output_dir: str, 
-                        whisper_transcription_path:str, 
+def extract_features(output_dir: str, 
+                        whisper_transcript_path:str, 
                         use_egemap02:bool=False, 
                         use_compare:bool=False, 
                         linguistic:bool=False, 
                         data_type:str="train",
-                        save_csv:bool=True) -> str:
+                        save_csv:bool=True) -> None:
     
     # Extract acoustic feature
     if use_egemap02:
-        output_acoustic_file = Path(output_dir) / "adresso_features_egemaps.csv"
+        output_acoustic_file = Path(output_dir) / f"adresso_features_egemaps_{data_type}.csv"
     elif use_compare:
-        output_acoustic_file = Path(output_dir) / "adresso_features_compare.csv"
+        output_acoustic_file = Path(output_dir) / f"adresso_features_compare_{data_type}.csv"
     else:
-        output_acoustic_file = Path(output_dir) / "adresso_features_praat.csv"
+        output_acoustic_file = Path(output_dir) / f"adresso_features_praat_{data_type}.csv"
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Linguistic features are independent of acoustic method
     if linguistic:
-        output_linguistic_file = Path(output_dir) / "adresso_features_linguistic.csv"
+        output_linguistic_file = Path(output_dir) / f"adresso_features_linguistic_{data_type}.csv"
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    transcript_files = glob.glob(whisper_transcription_path + f"/adresso_transcripts_{data_type}.csv")
+    transcript_files = glob.glob(whisper_transcript_path + f"/adresso_transcripts_{data_type}.csv")
+    transcript_files = transcript_files[0]
 
     # Sample information and data
     df_sample_info = pd.read_csv(transcript_files)
@@ -504,13 +511,11 @@ def feature_extraction(output_dir: str,
             df_acoustic = pd.concat(df_acoustic_list, ignore_index=True)
             df_acoustic.to_csv(output_acoustic_file, index=False)
 
-    return df_linguistic, df_acoustic
-
 
 # Split data into train, validation, and test sets
 def train_val_test_split(df_train:pd.DataFrame, 
                         test_size:float=0.2, 
-                        random_state:int=42) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+                        random_state:int=42) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """ Split data into train and validation datasets
     """
     

@@ -1,4 +1,4 @@
-BASE_PATH: "/mnt/data_lab513/ducvu/ADReSSo/ADReSSo-feature-extration"
+BASE_PATH: "" # Auto-extracted to project root by src/utils.py
 OUTPUT_FEATURE_PATH: "${BASE_PATH}/output/features"
 
 # Extract transcripts

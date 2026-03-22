@@ -4,7 +4,9 @@ from pathlib import Path
 import pandas as pd
 import torch
 
-def main(transcript:bool=True, feature:bool=True) -> str:
+def main(transcript:bool=False, 
+        feature:bool=False, 
+        feature_selection:bool=False) -> str:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Transcribe audio files
@@ -36,29 +38,49 @@ def main(transcript:bool=True, feature:bool=True) -> str:
         return f"finish transcript train and test set"
     
     if feature:
-        pass
+        path_config = utils.load_yaml("src/config/path.yaml")
+        whisper_transcript_path = path_config["TRANSCRIPT_PATH"]
+
+        # Data extraction TRAIN
+        # Extract train linguistic features and praat feature
+        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                                whisper_transcript_path=whisper_transcript_path,
+                                data_type="train", 
+                                use_egemap02=False, use_compare=False, linguistic=True)
+        # Extract train egeMAP02 features
+        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                                whisper_transcript_path=whisper_transcript_path,
+                                data_type="train", 
+                                use_egemap02=True, use_compare=False, linguistic=False)
+        # Extract train ComParE features
+        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                                whisper_transcript_path=whisper_transcript_path,
+                                data_type="train", 
+                                use_egemap02=False, use_compare=True, linguistic=False)
+
+        # Data extraction TEST
+        # Extract test linguistic features and praat feature
+        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                                whisper_transcript_path=whisper_transcript_path,
+                                data_type="test", 
+                                use_egemap02=False, use_compare=False, linguistic=True)
+        # Extract test egeMAP02 features
+        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                                whisper_transcript_path=whisper_transcript_path,
+                                data_type="test", 
+                                usde_egemap02=True, use_compare=False, linguistic=False)
+        # Extract test ComParE features
+        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                                whisper_transcript_path=whisper_transcript_path,
+                                data_type="test", 
+                                use_egemap02=False, use_compare=True, linguistic=False)
         return f"finish feature extraction train and test set"
 
+    if feature_selection:
+        pass
+        return f"finish feature selection on train dataset"
+
+
 if __name__ == "__main__":
-    # BASE_PATH = "/mnt/data_lab513/ducvu/ADReSSo/ADReSSo-feature-extration"
 
-    # OUTPUT_FEATURE_PATH = f"{BASE_PATH}/output/features"
-
-    # # Train paths
-    # CSV_SEGMENT_TRAIN_PATH = f"{BASE_PATH}/data/diagnosis/train/segmentation"
-    # AUDIO_TRAIN_PATH = f"{BASE_PATH}/data/diagnosis/train/audio"
-    # MMSE_DIAG_TRAIN_PATH = f"{BASE_PATH}/data/diagnosis/train/adresso-train-mmse-scores.csv"
-
-    # # Test paths
-    # CSV_SEGMENT_TEST_PATH = f"{BASE_PATH}/data/diagnosis/test-dist/segmentation"
-    # AUDIO_TEST_PATH = f"{BASE_PATH}/data/diagnosis/test-dist/audio"
-    # MMSE_DIAG_TEST_PATH = f"{BASE_PATH}/data/diagnosis/test-dist/adresso-test-mmse-scores.csv"
-
-    # # Extract transcripts
-    # TRANSCRIPT_PATH = f"{BASE_PATH}/output/transcripts"
-    # # Model setup
-    # MODEL_NAME = "openai/whisper-large-v3"
-    # BATCH_SIZE = 8
-
-
-    main(transcript=True, feature=True)
+    main(transcript=False, feature=True)
