@@ -1,0 +1,15 @@
+BASE_PATH: "/mnt/data_lab513/ducvu/ADReSSo/ADReSSo-feature-extration"
+OUTPUT_FEATURE_PATH: "${BASE_PATH}/output/features"
+
+# Extract transcripts
+TRANSCRIPT_PATH: "${BASE_PATH}/output/transcripts"
+
+train:
+    CSV_SEGMENT_TRAIN_PATH: "${BASE_PATH}/data/diagnosis/train/segmentation"
+    AUDIO_TRAIN_PATH: "${BASE_PATH}/data/diagnosis/train/audio"
+    MMSE_DIAG_TRAIN_PATH: "${BASE_PATH}/data/diagnosis/train/adresso-train-mmse-scores.csv"
+
+test:
+    CSV_SEGMENT_TEST_PATH: "${BASE_PATH}/data/diagnosis/test-dist/segmentation"
+    AUDIO_TEST_PATH: "${BASE_PATH}/data/diagnosis/test-dist/audio"
+    MMSE_DIAG_TEST_PATH: "${BASE_PATH}/data/diagnosis/test-dist/adresso-test-mmse-scores.csv"

@@ -22,6 +22,12 @@ import soundfile as sf
 from scipy.stats import skew, kurtosis
 from sklearn.model_selection import train_test_split
 
+from omegaconf import OmegaConf
+
+def load_yaml(yaml_path:str) -> dict:
+    return OmegaConf.load(yaml_path)
+
+
 def get_files(audio_path:str, 
                     data_type:str="train") -> dict[str, List[str]]:
     """Load all audio files from ADReSSo structure
