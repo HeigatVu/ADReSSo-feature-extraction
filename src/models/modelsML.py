@@ -1,15 +1,14 @@
 import numpy as np
-from scipy.linear_model import loguniform, randint, uniform
+from scipy.stats import loguniform, randint, uniform
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
-
 from sklearn.neural_network import MLPClassifier
-from sklearn.calibration import CalibratedClassifierCV
+
 import xgboost as xgb
 
-def create_models(seed:int=42):
+def create_models(seed:int=42) -> dict:
     """ Create classifiers
     """
 
@@ -20,11 +19,11 @@ def create_models(seed:int=42):
                         hidden_layer_sizes=(400,),
                         activation="logistic",
                         solver="sgd",
-                        leanrning_rate="adaptive",
+                        learning_rate="adaptive",
                         learning_rate_init=1e-3,
                         batch_size="auto",
                         max_iter=10000)
-    xgb = xgb.XGBClassifier(random_state=seed,
+    xgb_model = xgb.XGBClassifier(random_state=seed,
                             eval_metric="logloss",
                             n_jobs=1)
 
@@ -33,44 +32,58 @@ def create_models(seed:int=42):
         "svm": svm,
         "rf": rf,
         "mlp": mlp,
-        "xgb": xgb
+        "xgb": xgb_model
     }
 
 
-def create_hyperparameter_space():
+def create_hyperparameter_space(use_pipeline:bool=True) -> dict:
     """ Create hyperparameter space for classifiers
     """
+
+    if use_pipeline:
+        prefix = "clf__"
+    else:
+        prefix = ""
+
     lr_params = {
-        "C": loguniform(1e-5, 1e2),
-        "penalty": ["l1", "l2"],
-        "solver": ["liblinear", "saga"],
+        prefix + "C": loguniform(1e-5, 1e2),
+        prefix + "penalty": ["l1", "l2"],
+        prefix + "solver": ["liblinear", "saga"],
     }
 
     svm_params = {
-        "C": loguniform(1e-5, 1e2),
-        "gamma": ["scale", "auto"] + list(np.geomspace(1e-6, 1.0, 10)),
-        "kernel": ["rbf", "linear"],
+        prefix + "C": loguniform(1e-5, 1e2),
+        prefix + "gamma": ["scale", "auto"] + list(np.geomspace(1e-6, 1.0, 10)),
+        prefix + "kernel": ["rbf", "linear"],
     }
 
     rf_params = {
-        "n_estimators": list(range(50, 501, 50)),
-        "max_depth": [None] + list(range(5, 31, 5)),
-        "min_samples_split": [2, 3, 4, 5],
-        "min_samples_leaf": [1, 2, 3]
+        prefix + "n_estimators": list(range(50, 501, 50)),
+        prefix + "max_depth": [None] + list(range(5, 31, 5)),
+        prefix + "min_samples_split": [2, 3, 4, 5],
+        prefix + "min_samples_leaf": [1, 2, 3]
     }
 
     mlp_params = {
-        "learning_rate_init": loguniform(1e-3, 1e-2),
-        "batch_size": [16, 32, 64, 128, 166],
-        "alpha": loguniform(1e-4, 1e-3)
+        prefix + "learning_rate_init": loguniform(1e-3, 1e-2),
+        prefix + "batch_size": [16, 32, 64, 128, 166],
+        prefix + "alpha": loguniform(1e-4, 1e-3)
     }
 
     xgb_params = {
-        "learning_rate": uniform(1e-2, 0.49),
-        "n_estimators": randint(50, 501),
-        "max_depth": randint(1, 10),
-        "subsample": uniform(1e-2, 0.99),
-        "colsample_bytree": uniform(0.7, 0.3),
-        "reg_alpha": uniform(0.0, 1e-3),
-        "gamma": uniform(0, 0.5)
+        prefix + "learning_rate": uniform(1e-2, 0.49),
+        prefix + "n_estimators": randint(50, 501),
+        prefix + "max_depth": randint(1, 10),
+        prefix + "subsample": uniform(1e-2, 0.99),
+        prefix + "colsample_bytree": uniform(0.7, 0.3),
+        prefix + "reg_alpha": uniform(0.0, 1e-3),
+        prefix + "gamma": uniform(0, 0.5)
+    }
+
+    return {
+        "lr": lr_params,
+        "svm": svm_params,
+        "rf": rf_params,
+        "mlp": mlp_params,
+        "xgb": xgb_params
     }
