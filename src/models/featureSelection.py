@@ -75,10 +75,10 @@ def rank_features(df:pd.DataFrame,
     feature_relevance = calculate_all_feature_relevances(df, features, idxs_by_class)
     calculated_correlations = dict()
     ranked_features = []
-
+    
     most_important_feature = max(feature_relevance.items(), key=operator.itemgetter(1))[0]
     ranked_features.append(most_important_feature)
-
+    
     while len(ranked_features) != len(features):
         top_importance = float('-inf')
         most_important_feature = None

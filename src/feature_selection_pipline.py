@@ -31,7 +31,7 @@ def get_random_forest_ranking(df:pd.DataFrame, target_name:str) -> pd.Series:
 
 def compare_ranking_methods(df:pd.DataFrame, 
                             target_name:str, k:int = 10, 
-                            save_csv:bool=True, save_path:str=None, name:str=None) -> dict[str, list[str]]:
+                            save_csv:bool=True, save_path:str=None, name:str=None) -> list[str]:
     """ Compare feature ranking methods
     """
     dict_method = {
@@ -48,7 +48,7 @@ def compare_ranking_methods(df:pd.DataFrame,
     merged_important_feature = list(set(merged_important_feature))
 
     if save_csv:
-        df_method = pd.DataFrame(merged_important_feature)
-        df_method.to_csv(save_path + "/" + name + ".csv ", index=False)
+        df_method = pd.DataFrame(merged_important_feature, columns=["feature_name"])
+        df_method.to_csv(save_path + "/" + name + ".csv", index=False)
 
     return merged_important_feature

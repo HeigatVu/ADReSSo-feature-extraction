@@ -99,7 +99,7 @@ def main_traditional_approach(transcript:bool=False,
 
     if feature_selection_classification:
         path_config = utils.load_yaml("src/config/path.yaml")
-        feature_types = ["linguistic", "praat", "compare", "egemaps"]
+        feature_types = ["linguistic", "praat", "egemaps"]
         for feature_type in feature_types:
             df_csv = pd.read_csv(path_config["OUTPUT_FEATURE_PATH"] + "/" + "adresso_" + feature_type + "_train.csv")
             pkl_path = path_config["PKL_PATH"] + "/" + "adresso_" + feature_type + "_train.pkl"
@@ -122,5 +122,4 @@ if __name__ == "__main__":
     main_traditional_approach(transcript=False, 
                             feature=False, 
                             pkl_data=False, 
-                            feature_selection_classification=True, 
-                            k=10)
+                            feature_selection_classification=True, k=10)
