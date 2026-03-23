@@ -4,6 +4,9 @@ import pandas as pd
 from scipy.stats import f_oneway
 import operator
 
+from sklearn.decomposition import PCA
+
+# Using MRMR build based on https://github.com/elliotweissberg/Algorithms/blob/master/MRMr_Explained.ipynb
 def get_idxs_by_class(df:pd.DataFrame, 
                     target_name:str) -> list[np.ndarray]:
     """ Group indices by class
@@ -100,3 +103,20 @@ def rank_features(df:pd.DataFrame,
         ranked_features.append(most_important_feature)
 
     return ranked_features
+
+
+# Using PCA
+def pca_selection(X_train_scaled:np.ndarray, 
+                    X_test_scaled:np.ndarray, 
+                    n_components:float=0.95) -> tuple[np.ndarray, np.ndarray]:
+    """ Select features using PCA
+    """
+    pca = PCA(n_components=n_components)
+    X_train_pca = pca.fit_transform(X_train_scaled)
+    X_test_pca = pca.transform(X_test_scaled)
+
+    n_comp = pca.n_components_
+    var = pca.explained_variance_ratio_.sum()
+    print(f"\nPCA — {n_comp} components explain {var * 100:.1f}% of variance")
+    print(f"  Reduced: {X_train_scaled.shape[1]} → {n_comp} dimensions")
+    return X_train_pca, X_test_pca

@@ -9,7 +9,6 @@ dependencies = [
     "en-core-web-sm",
     "ideadensity>=0.5.1",
     "librosa>=0.11.0",
-    "mrmr-selection>=0.2.8",
     "numpy>=2.4.3",
     "omegaconf>=2.3.0",
     "opensmile>=2.6.0",
@@ -27,6 +26,7 @@ dependencies = [
     "torchaudio>=2.10.0",
     "tqdm>=4.67.3",
     "transformers>=5.3.0",
+    "xgboost>=3.2.0",
 ]
 
 [tool.uv.sources]

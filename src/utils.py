@@ -85,7 +85,7 @@ def fit_scaler(X:pd.DataFrame) -> tuple[np.ndarray, StandardScaler]:
 
 def load_data(pkl_path:str, 
             feature_names:list=None,
-            meta_data:bool=False) -> pd.DataFrame:
+            meta_data:bool=False, df_csv:str=None) -> pd.DataFrame:
     """Load data for feature selection and classification
     """
     df = pd.read_pickle(pkl_path)
@@ -98,7 +98,12 @@ def load_data(pkl_path:str,
         index=df.index
     )
 
-    if feature_names is not None:
+    if df_csv is not None:
+        feature_names = []
+        for col in df_csv.columns:
+            if col in ["patient_id", "diagnosis", "mmse", "lang"]:
+                continue
+            feature_names.append(col)
         data_expanded.columns = feature_names
     else:
         data_expanded.columns = [f'feature_{i}' for i in range(data_expanded.shape[1])]
